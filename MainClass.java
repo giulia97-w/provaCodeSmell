@@ -183,47 +183,80 @@ public class MainClass {
 
 
     public static void cleanTicketInconsistencies() {
-
         for (Ticket ticket : ticketList) {
-
-            if (ticket.getIV() == 0) {    // Se IV non è definita
-                ticket.setIV(1);
-                ticket.getAV().clear();
-                for (int i = ticket.getIV(); i <= releasesList.size(); i++) {
-                    ticket.getAV().add(i);
-                }
-            } else {    // Se IV è definita
-                if (ticket.getFV() > ticket.getIV() && ticket.getOV() >= ticket.getIV()) { // Caso corretto
-                    ticket.getAV().clear(); // Svuoto la lista di AV per poi aggiornarla con valori corretti
-                    for (int i = ticket.getIV(); i < ticket.getFV(); i++) {
-                        ticket.getAV().add(i);
-                    }
-                } else { // Caso di errore, cioè IV viene dopo FV oppure OV, e non può essere.
-                    ticket.setIV(0); // Setto come errore
-                    ticket.getAV().clear();
-                    ticket.getAV().add(0);
-                }
-
-                if (ticket.getFV().equals(ticket.getIV())) {    // Se FV = IV -> AV vuota. (caso 'base')
-                    ticket.getAV().clear();
-                    ticket.getAV().add(0);
-                }
-
-                if (ticket.getOV() == 1) { // Condizioni caso base in cui OV = prima release.
-                    ticket.getAV().clear(); // Svuoto la lista di AV per poi aggiornarla con valori corretti
-                    if (ticket.getFV() == 1) {
-                        ticket.setIV(1);
-                        ticket.getAV().add(0);  // Se OV=FV allora AV = 0, cioè non metto nulla.
-                    } else {
-                        ticket.setIV(1);
-                        for (int i = ticket.getIV(); i < ticket.getFV(); i++) { // Se FV non è prima release, assegno ad AV tutte le release da IV ad FV.
-                            ticket.getAV().add(i);
-                        }
-                    }
-                }
+            if (ticket.getIV() == 0) {
+                handleUndefinedIV(ticket);
+            } else {
+                handleDefinedIV(ticket);
             }
         }
     }
+
+    private static void handleUndefinedIV(Ticket ticket) {
+        ticket.setIV(1);
+        ticket.getAV().clear();
+        for (int i = ticket.getIV(); i <= releasesList.size(); i++) {
+            ticket.getAV().add(i);
+        }
+    }
+
+    private static void handleDefinedIV(Ticket ticket) {
+        if (isCorrectIV(ticket)) {
+            updateCorrectIV(ticket);
+        } else {
+            handleInvalidIV(ticket);
+        }
+
+        if (isBaseCase(ticket)) {
+            handleBaseCase(ticket);
+        } else if (isFirstRelease(ticket)) {
+            handleFirstRelease(ticket);
+        }
+    }
+
+    private static boolean isCorrectIV(Ticket ticket) {
+        return ticket.getFV() > ticket.getIV() && ticket.getOV() >= ticket.getIV();
+    }
+
+    private static void updateCorrectIV(Ticket ticket) {
+        ticket.getAV().clear();
+        for (int i = ticket.getIV(); i < ticket.getFV(); i++) {
+            ticket.getAV().add(i);
+        }
+    }
+
+    private static void handleInvalidIV(Ticket ticket) {
+        ticket.setIV(0);
+        ticket.getAV().clear();
+        ticket.getAV().add(0);
+    }
+
+    private static boolean isBaseCase(Ticket ticket) {
+        return ticket.getFV().equals(ticket.getIV());
+    }
+
+    private static void handleBaseCase(Ticket ticket) {
+        ticket.getAV().clear();
+        ticket.getAV().add(0);
+    }
+
+    private static boolean isFirstRelease(Ticket ticket) {
+        return ticket.getOV() == 1;
+    }
+
+    private static void handleFirstRelease(Ticket ticket) {
+        ticket.getAV().clear();
+        if (ticket.getFV() == 1) {
+            ticket.setIV(1);
+        } else {
+            ticket.setIV(1);
+            for (int i = ticket.getIV(); i < ticket.getFV(); i++) {
+                ticket.getAV().add(i);
+            }
+        }
+        ticket.getAV().add(0);
+    }
+
 
     
     private static Map<LocalDateTime, String> releasesNameVersion;
@@ -241,34 +274,19 @@ public class MainClass {
     }
 
     public static JSONObject readJsonFromUrl(String url) throws IOException, JSONException {
-        HttpURLConnection connection = null;
-        BufferedReader reader = null;
+        URL urlObject = new URL(url);
 
-        try {
-            URL urlObject = new URL(url);
-            connection = (HttpURLConnection) urlObject.openConnection();
-            connection.setRequestMethod("GET");
+        HttpURLConnection connection = (HttpURLConnection) urlObject.openConnection();
+        connection.setRequestMethod("GET");
 
-            InputStream inputStream = connection.getInputStream();
-            InputStreamReader inputStreamReader = new InputStreamReader(inputStream, StandardCharsets.UTF_8);
-            reader = new BufferedReader(inputStreamReader);
-
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream(), StandardCharsets.UTF_8))) {
             String jsonText = readAll(reader);
             return new JSONObject(jsonText);
-
         } finally {
-            if (reader != null) {
-                try {
-                    reader.close();
-                } catch (IOException e) {
-                    // Do nothing
-                }
-            }
-            if (connection != null) {
-                connection.disconnect();
-            }
+            connection.disconnect();
         }
     }
+
 
 
     /** OPERAZIONI PER OTTENERE LE RELEASE **/
