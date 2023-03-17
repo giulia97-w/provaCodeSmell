@@ -335,20 +335,23 @@ public class MainClass {
     }
 
 
-    private static void addRelease(String releaseDate, String name, String id) throws DateTimeParseException {
+    private static void addRelease(String releaseDate, String name, String id) {
         try {
-            LocalDate date = LocalDate.parse(releaseDate);                                          // like 2007-12-03
-            LocalDateTime dateTime = date.atStartOfDay();                                           // like 2007-12-03T00:00:00
-            if (!releasesOnlyDate.contains(dateTime)) {                                             // se tale data non è già presente
-                releasesOnlyDate.add(dateTime);                                                     // aggiungo alla lista
+            LocalDate date = LocalDate.parse(releaseDate);
+            LocalDateTime dateTime = date.atStartOfDay();
+            if (!releasesOnlyDate.contains(dateTime)) {
+                releasesOnlyDate.add(dateTime);
             }
-            releasesNameVersion.put(dateTime, name);                                                // metto data e nome
-            releasesID.put(dateTime, id);                                                           // metto data e id
-        } catch (DateTimeParseException e) {                                                         // se la data non è parsabile
-            logger.log(Level.SEVERE, "Error: Invalid release date format " + releaseDate, e);        // log the error with the logger
-            throw e;
+            releasesNameVersion.put(dateTime, name);
+            releasesID.put(dateTime, id);
+        } catch (DateTimeParseException e) {
+            String errorMessage = String.format("Error adding release with date %s, name %s, and id %s", releaseDate, name, id);
+            logger.log(Level.SEVERE, errorMessage, e);
+            // handle the exception appropriately, for example by returning a default value or presenting an error message to the user
         }
     }
+
+
 
 
 
