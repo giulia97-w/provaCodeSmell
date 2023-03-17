@@ -345,7 +345,7 @@ public class MainClass {
             releasesNameVersion.put(dateTime, name);                                                // metto data e nome
             releasesID.put(dateTime, id);                                                           // metto data e id
         } catch (DateTimeParseException e) {                                                         // se la data non è parsabile
-            System.err.println("Error: Invalid release date format " + releaseDate);                  // stampo l'errore
+            logger.log(Level.SEVERE, "Error: Invalid release date format " + releaseDate, e);        // log the error with the logger
             throw e;
         }
     }
@@ -522,8 +522,8 @@ public class MainClass {
 
         fileWriter.append(file.getNr().toString());
         fileWriter.append(",");
-        int LOC = file.getNAuth().size();
-        fileWriter.append(String.valueOf(LOC));
+        int loc = file.getNAuth().size();
+        fileWriter.append(String.valueOf(loc));
         fileWriter.append(",");
         fileWriter.append(file.getChgSetSize().toString());
         fileWriter.append(",");
