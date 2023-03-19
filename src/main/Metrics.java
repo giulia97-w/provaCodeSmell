@@ -203,9 +203,13 @@ public class Metrics {
         ByteArrayOutputStream output = new ByteArrayOutputStream();
         loader.copyTo(output);
         String fileContent = output.toString();
-        
+            
         BufferedReader reader = new BufferedReader(new StringReader(fileContent));
         int lines = 0;
-        while (reader.readLine() != null) lines++;
+        String line;
+        while ((line = reader.readLine()) != null) {
+            lines++;
+        }
         return lines;
     }}
+
