@@ -25,7 +25,6 @@ import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
-import java.util.logging.Logger;
 
 
 public class Metrics {
@@ -41,24 +40,29 @@ public class Metrics {
     static Logger logger = Logger.getLogger(Metrics.class.getName());
 
     public static void calculateMetricsForReleases(List<Release> releasesList, String repositoryPath) throws IOException {
-        
+
         try (Repository repository = new FileRepositoryBuilder().setGitDir(new File(repositoryPath))
                 .readEnvironment()
                 .findGitDir()
                 .setMustExist(true)
-                .build()) {                                                                            
+                .build()) {
+            
             for (Release release : releasesList) {
-                List<JavaFile> javaFilesListForRelease = new ArrayList<>();                          
+                List<JavaFile> javaFilesListForRelease = new ArrayList<>();
+                
                 for (RevCommit commit : release.getCommitList()) {
                     analyzeCommitDiffMetrics(commit, javaFilesListForRelease, repository);
                 }
+                
                 updateMetricsOfFilesByRelease(javaFilesListForRelease, release);
             }
+            
         } catch (IOException e) {
-        	logger.severe("Error accessing the Git repository: " + e.getMessage());
-            throw e;
+            logger.severe("Error accessing the Git repository: " + e.getMessage());
+            throw new IOException("Error accessing the Git repository: " + e.getMessage(), e);
         }
     }
+
     
     private static void analyzeCommitDiffMetrics(RevCommit commit, List<JavaFile> javaFilesListForRelease, Repository repository) {
         try (DiffFormatter diffFormatter = new DiffFormatter(DisabledOutputStream.INSTANCE)) {               
