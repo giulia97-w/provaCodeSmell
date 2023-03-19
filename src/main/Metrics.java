@@ -206,8 +206,8 @@ public class Metrics {
             
         BufferedReader reader = new BufferedReader(new StringReader(fileContent));
         int lines = 0;
-        String line;
-        while ((line = reader.readLine()) != null) {
+        
+        while ((reader.readLine()) != null) {
             lines++;
         }
         return lines;
