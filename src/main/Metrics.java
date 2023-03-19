@@ -59,9 +59,10 @@ public class Metrics {
             
         } catch (IOException e) {
             logger.severe("Error accessing the Git repository: " + e.getMessage());
-            throw new IOException("Error accessing the Git repository: " + e.getMessage(), e);
         }
-    }
+
+        }
+    
 
     
     private static void analyzeCommitDiffMetrics(RevCommit commit, List<JavaFile> javaFilesListForRelease, Repository repository) {
