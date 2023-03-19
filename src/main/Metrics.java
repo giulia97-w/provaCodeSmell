@@ -208,9 +208,14 @@ public class Metrics {
         BufferedReader reader = new BufferedReader(new StringReader(fileContent));
         int lines = 0;
         
-        while ((reader.readLine()) != null) {
+        while (true) {
+            String line = reader.readLine();
+            if (line == null) {
+                break;
+            }
             lines++;
+            // Do something with the line, such as print it or process it further
         }
-        return lines;
+		return lines;
     }}
 
