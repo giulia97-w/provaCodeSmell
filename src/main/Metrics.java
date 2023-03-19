@@ -25,6 +25,7 @@ import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
+import java.util.logging.Logger;
 
 
 public class Metrics {
@@ -40,6 +41,7 @@ public class Metrics {
     static Logger logger = Logger.getLogger(Metrics.class.getName());
 
     public static void calculateMetricsForReleases(List<Release> releasesList, String repositoryPath) throws IOException {
+        
         try (Repository repository = new FileRepositoryBuilder().setGitDir(new File(repositoryPath))
                 .readEnvironment()
                 .findGitDir()
@@ -48,26 +50,31 @@ public class Metrics {
             for (Release release : releasesList) {
                 List<JavaFile> javaFilesListForRelease = new ArrayList<>();                          
                 for (RevCommit commit : release.getCommitList()) {
-                    try (DiffFormatter diffFormatter = new DiffFormatter(DisabledOutputStream.INSTANCE)) {               
-                        diffFormatter.setRepository(repository);                                    
-                        diffFormatter.setDiffComparator(RawTextComparator.DEFAULT);
-                        diffFormatter.setDetectRenames(true);
-                        String authorName = commit.getAuthorIdent().getName();
-                        List<DiffEntry> diffs = RetrieveGit.getDiffs(commit);                           
-                        if (diffs != null) {
-                            analyzeDiffEntryMetrics(diffs, javaFilesListForRelease, authorName, diffFormatter);
-                        }
-                    } catch (Exception e) {
-                        System.err.println("Error analyzing diff entry metrics: " + e.getMessage());
-                    }
+                    analyzeCommitDiffMetrics(commit, javaFilesListForRelease, repository);
                 }
                 updateMetricsOfFilesByRelease(javaFilesListForRelease, release);
             }
         } catch (IOException e) {
-            System.err.println("Error accessing the Git repository: " + e.getMessage());
+        	logger.severe("Error accessing the Git repository: " + e.getMessage());
             throw e;
         }
     }
+    
+    private static void analyzeCommitDiffMetrics(RevCommit commit, List<JavaFile> javaFilesListForRelease, Repository repository) {
+        try (DiffFormatter diffFormatter = new DiffFormatter(DisabledOutputStream.INSTANCE)) {               
+            diffFormatter.setRepository(repository);
+            diffFormatter.setDiffComparator(RawTextComparator.DEFAULT);
+            diffFormatter.setDetectRenames(true);
+            String authorName = commit.getAuthorIdent().getName();
+            List<DiffEntry> diffs = RetrieveGit.getDiffs(commit);                           
+            if (diffs != null) {
+                analyzeDiffEntryMetrics(diffs, javaFilesListForRelease, authorName, diffFormatter);
+            }
+        } catch (Exception e) {
+        	logger.severe("Error analyzing diff entry metrics: " + e.getMessage());
+        }
+    }
+
 
 
 
