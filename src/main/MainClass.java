@@ -500,71 +500,40 @@ public class MainClass {
                 }
             }
         } catch (Exception ex) {
-            logger.log(Level.SEVERE, "Error in writeCSVBuggyness");}
+            }
         }
 
 
 // per arrotondare alla seconda cifra decimale!
 
-    public static String doubleTransform(Double value) {
-        DecimalFormat df = new DecimalFormat("#.######", DecimalFormatSymbols.getInstance(Locale.US));
-        return df.format(value);
-    }
-
-
-
-
-public static void writeWekaCSV(List<WekaRecordi> wekaRecordList, String projName) {
-    try (
-            FileWriter fileWriter = new FileWriter(projName.toLowerCase()+".WekaResults.csv")) {
-
-        fileWriter.append("Dataset,#TrainingRelease,%training/total,%Defective/training,%Defective/testing,Classifier,"
-                + "Feature Selection,Balancing,Sensitivity,TP,FP,TN,FN,Precision,Recall,AUC,Kappa\n");
-
-
+    public static void writeWekaCSV(List<WekaRecordi> wekaRecordList, String projName) {
+    	DecimalFormat df = new DecimalFormat("#.######", DecimalFormatSymbols.getInstance(Locale.US));
+    	try (FileWriter fileWriter = new FileWriter(projName.toLowerCase()+".WekaResults.csv")) {
+    	fileWriter.append("Dataset,#TrainingRelease,%training/total,%Defective/training,%Defective/testing,Classifier,"
+    	+ "Feature Selection,Balancing,Sensitivity,TP,FP,TN,FN,Precision,Recall,AUC,Kappa\n");
         for(WekaRecordi entry : wekaRecordList) {
-
-            fileWriter.append(entry.getDatasetName());
-            fileWriter.append(",");
-            fileWriter.append(entry.getNumTrainingRelease().toString());
-            fileWriter.append(",");
-            fileWriter.append(doubleTransform(entry.getTrainingPerc()));
-            fileWriter.append(",");
-            fileWriter.append(doubleTransform(entry.getDefectPercTrain()));
-            fileWriter.append(",");
-            fileWriter.append(doubleTransform(entry.getDefectPercTest()));
-            fileWriter.append(",");
-            fileWriter.append(entry.getClassifierName());
-            fileWriter.append(",");
-            fileWriter.append(entry.getFeatureSelection());
-            fileWriter.append(",");
-            fileWriter.append(entry.getBalancing());
-            fileWriter.append(",");
-            fileWriter.append(entry.getSensitivity());
-            fileWriter.append(",");
-            fileWriter.append(entry.getTP().toString());
-            fileWriter.append(",");
-            fileWriter.append(entry.getFP().toString());
-            fileWriter.append(",");
-            fileWriter.append(entry.getTN().toString());
-            fileWriter.append(",");
-            fileWriter.append(entry.getFN().toString());
-            fileWriter.append(",");
-            fileWriter.append(doubleTransform(entry.getPrecision()));
-            fileWriter.append(",");
-            fileWriter.append(doubleTransform(entry.getRecall()));
-            fileWriter.append(",");
-            fileWriter.append(doubleTransform(entry.getAuc()));
-            fileWriter.append(",");
-            fileWriter.append(doubleTransform(entry.getKappa()));
-            fileWriter.append("\n");
+            fileWriter.append(entry.getDatasetName()).append(",");
+            fileWriter.append(entry.getNumTrainingRelease().toString()).append(",");
+            fileWriter.append(df.format(entry.getTrainingPerc())).append(",");
+            fileWriter.append(df.format(entry.getDefectPercTrain())).append(",");
+            fileWriter.append(df.format(entry.getDefectPercTest())).append(",");
+            fileWriter.append(entry.getClassifierName()).append(",");
+            fileWriter.append(entry.getFeatureSelection()).append(",");
+            fileWriter.append(entry.getBalancing()).append(",");
+            fileWriter.append(entry.getSensitivity()).append(",");
+            fileWriter.append(entry.getTP().toString()).append(",");
+            fileWriter.append(entry.getFP().toString()).append(",");
+            fileWriter.append(entry.getTN().toString()).append(",");
+            fileWriter.append(entry.getFN().toString()).append(",");
+            fileWriter.append(df.format(entry.getPrecision())).append(",");
+            fileWriter.append(df.format(entry.getRecall())).append(",");
+            fileWriter.append(df.format(entry.getAuc())).append(",");
+            fileWriter.append(df.format(entry.getKappa())).append("\n");
             fileWriter.flush();
         }
-
     } catch (Exception ex) {
-        logger.log(Level.SEVERE, "Error in writeWekaCSV");
+        logger.log(Level.SEVERE, "Error in writeWekaCSV");}
     }
-}
 
 private static Repository repository;
 private static final String FILE_EXTENSION = ".java";
