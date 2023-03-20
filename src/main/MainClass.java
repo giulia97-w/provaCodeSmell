@@ -94,7 +94,7 @@ public class MainClass {
         //linkage collegamento stabilito per tenere traccia delle modifiche apportate a un progetto sw e delle relative correzioni  di errori in questo modo si può tenere traccia di quale commit ha corretto un determinato problema
         linkTicketCommits();
         //rimuovi metà delle release
-        removeHalfRelease(releasesList, ticketList);
+        removeHalfReleaseAndSetAVTickets(releasesList, ticketList);
 
         //pulizia inconsistenze
         cleanTicketInconsistencies();
@@ -163,7 +163,7 @@ public class MainClass {
 
 
     //rimuovo la metà delle release per evitare data missing
-    public static void removeHalfRelease(List<Release> releasesList, List<Ticket> ticketList) {
+    public static void removeHalfReleaseAndSetAVTickets(List<Release> releasesList, List<Ticket> tickets) {
 
         int releaseNumber = releasesList.size();
 
@@ -172,9 +172,7 @@ public class MainClass {
         logger.log(Level.INFO, "NUMERO RELEASE == = {0}.", releaseNumber);
         logger.log(Level.INFO, "HALF RELEASE == = {0}.", halfRelease);
 
-        releasesList.removeIf(release -> release.getIndex() > halfRelease);
-
-        Iterator<Ticket> iterator = ticketList.iterator();
+        Iterator<Ticket> iterator = tickets.iterator();
         while (iterator.hasNext()) {
             Ticket ticket = iterator.next();
             if (ticket.getIV() > halfRelease) {
@@ -188,6 +186,8 @@ public class MainClass {
                 }
             }
         }
+
+        releasesList.removeIf(release -> release.getIndex() > halfRelease);
     }
 
 
@@ -203,6 +203,20 @@ public class MainClass {
                 for (int i = ticket.getIV(); i <= releasesList.size(); i++) {
                     ticket.getAV().add(i);
                 }
+            } else if (ticket.getFV().equals(ticket.getIV())) {
+                ticket.getAV().clear();
+                ticket.getAV().add(0);
+            } else if (ticket.getOV() == 1) {
+                ticket.getAV().clear();
+                if (ticket.getFV() == 1) {
+                    ticket.setIV(1);
+                } else {
+                    ticket.setIV(1);
+                    for (int i = ticket.getIV(); i < ticket.getFV(); i++) {
+                        ticket.getAV().add(i);
+                    }
+                }
+                ticket.getAV().add(0);
             } else {
                 if (ticket.getFV() > ticket.getIV() && ticket.getOV() >= ticket.getIV()) {
                     ticket.getAV().clear();
@@ -214,26 +228,9 @@ public class MainClass {
                     ticket.getAV().clear();
                     ticket.getAV().add(0);
                 }
-
-                if (ticket.getFV().equals(ticket.getIV())) {
-                    ticket.getAV().clear();
-                    ticket.getAV().add(0);
-                } else if (ticket.getOV() == 1) {
-                    ticket.getAV().clear();
-                    if (ticket.getFV() == 1) {
-                        ticket.setIV(1);
-                    } else {
-                        ticket.setIV(1);
-                        for (int i = ticket.getIV(); i < ticket.getFV(); i++) {
-                            ticket.getAV().add(i);
-                        }
-                    }
-                    ticket.getAV().add(0);
-                }
             }
         }
     }
-
 
 
     
