@@ -689,6 +689,7 @@ public static List<DiffEntry> getDiffs(RevCommit commit) throws IOException {
 
 public static void analyzeDiffEntryBug(List<DiffEntry> diffs, List<Release> releasesList, List<Integer> av)
 {
+
     for (DiffEntry diff : diffs)
     {
         String type = diff.getChangeType().toString(); //prendo i cambiamenti
@@ -702,27 +703,27 @@ public static void analyzeDiffEntryBug(List<DiffEntry> diffs, List<Release> rele
 
             String file;
             if (diff.getChangeType() == DiffEntry.ChangeType.DELETE || diff.getChangeType() == DiffEntry.ChangeType.RENAME )
-            {
-                file = diff.getOldPath(); //file modificato
-            }
-            else
-            { //MODIFY
-                file = diff.getNewPath();
-            }
-
-            for (Release release : releasesList)
-            {
-                for (JavaFile javaFile : release.getFileList())
                 {
-                    if (javaFile.getName().equals(file) && av.contains(release.getIndex()))
-                    {
-                        javaFile.setBugg("Yes");
-                    }
+                    file = diff.getOldPath(); //file modificato
+                 }
+            else
+                { //MODIFY
+                    file = diff.getNewPath();
                 }
-            }
+            
+            for (Release release : releasesList) {
+            	for(JavaFile javaFile: release.getFileList())
+            	{
+            		if (    (javaFile.getName().equals(file)) && (av.contains((release.getIndex())))    ) {
+                        javaFile.setBugg("Yes");
+                    
+            	}}}}}
+            
 
-        }
-    }
+            
+
+        
+    
 }
 
 
