@@ -198,39 +198,32 @@ public class MainClass {
     public static void cleanTicketInconsistencies() {
         for (Ticket ticket : ticketList) {
             if (ticket.getIV() == 0) {
-                ticket.setIV(1);
-                ticket.getAV().clear();
-                for (int i = ticket.getIV(); i <= releasesList.size(); i++) {
-                    ticket.getAV().add(i);
-                }
+                resetTicket(ticket);
             } else if (ticket.getFV().equals(ticket.getIV())) {
                 ticket.getAV().clear();
                 ticket.getAV().add(0);
             } else if (ticket.getOV() == 1) {
-                ticket.getAV().clear();
-                if (ticket.getFV() == 1) {
-                    ticket.setIV(1);
-                } else {
-                    ticket.setIV(1);
-                    for (int i = ticket.getIV(); i < ticket.getFV(); i++) {
-                        ticket.getAV().add(i);
-                    }
-                }
+                resetTicket(ticket);
                 ticket.getAV().add(0);
-            } else {
-                if (ticket.getFV() > ticket.getIV() && ticket.getOV() >= ticket.getIV()) {
-                    ticket.getAV().clear();
-                    for (int i = ticket.getIV(); i < ticket.getFV(); i++) {
-                        ticket.getAV().add(i);
-                    }
-                } else {
-                    ticket.setIV(0);
-                    ticket.getAV().clear();
-                    ticket.getAV().add(0);
+            } else if (ticket.getFV() > ticket.getIV() && ticket.getOV() >= ticket.getIV()) {
+                ticket.getAV().clear();
+                for (int i = ticket.getIV(); i < ticket.getFV(); i++) {
+                    ticket.getAV().add(i);
                 }
+            } else {
+                resetTicket(ticket);
             }
         }
     }
+
+    private static void resetTicket(Ticket ticket) {
+        ticket.setIV(1);
+        ticket.getAV().clear();
+        for (int i = ticket.getIV(); i <= releasesList.size(); i++) {
+            ticket.getAV().add(i);
+        }
+    }
+
 
 
     
