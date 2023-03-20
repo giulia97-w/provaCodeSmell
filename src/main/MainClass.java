@@ -1,166 +1,76 @@
+
 package main;
 
-
-import org.eclipse.jgit.api.Git;
-import org.eclipse.jgit.api.InitCommand;
 import org.eclipse.jgit.api.errors.GitAPIException;
-import org.eclipse.jgit.diff.DiffEntry;
-import org.eclipse.jgit.diff.DiffFormatter;
-import org.eclipse.jgit.lib.ObjectId;
-import org.eclipse.jgit.lib.Repository;
 import org.eclipse.jgit.revwalk.RevCommit;
-import org.eclipse.jgit.revwalk.RevWalk;
-import org.eclipse.jgit.storage.file.FileRepositoryBuilder;
-import org.eclipse.jgit.treewalk.CanonicalTreeParser;
-import org.eclipse.jgit.treewalk.EmptyTreeIterator;
-import org.eclipse.jgit.treewalk.TreeWalk;
-import org.eclipse.jgit.util.io.DisabledOutputStream;
-import org.json.JSONArray;
+import main.Release;
+import main.Ticket;
 import org.json.JSONException;
-import org.json.JSONObject;
 
-import com.opencsv.CSVWriter;
-
-
-
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileWriter;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.Reader;
-import java.net.HttpURLConnection;
-import java.net.URL;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.text.DecimalFormat;
-import java.text.DecimalFormatSymbols;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
-import java.time.format.DateTimeParseException;
 import java.util.*;
 import java.util.logging.Level;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 
 public class MainClass {
-	
-	//variabile di tipo logger utilizzata per registrare messaggi di log
+
     private static final Logger logger = Logger.getLogger(MainClass.class.getName());
-    
-    // lista oggetti release che rappresentano le varie versioni del progetto
+
+
     private static List<Release> rel;
-    // Una lista di oggetti ticket che rappresentano i ticket relativi al bug fixing del progetto
     private static List<Ticket> tickets;
-    // lista di oggetti che rappresentano i commit fatti nel repository del progetto
     private static List<RevCommit> com;
-    //nome progetto
-    public static final String NAMEPROJECT = "BOOKKEEPER";
-    
-    public static int getReleaseIndex(LocalDateTime commitDate, List<Release> releaseList) {
-        int releaseIndex = -1; //initialize to -1 to indicate no matching release found
-        for (Release release : releaseList) {
-            if (commitDate.isBefore(release.getDate())) { //if commit date is before the release date
-                break; //exit the loop as the release has not yet been made
-            }
-            releaseIndex = release.getIndex(); //set the release index to the index of the latest release
-        }
-        return releaseIndex; //return the release index
-    }
+    public static final String NAMEPROJECT = "BOOKKEEPER"; // OR 'AVRO'
+
 
     public static void main(String[] args) throws IllegalStateException, GitAPIException, IOException, JSONException {
-    	
-    	//repo del progetto
+
         String repo = "/Users/giuliamenichini/" + NAMEPROJECT.toLowerCase() + "/.git";
         Path repoPath = Paths.get("/Users/giuliamenichini/" + NAMEPROJECT.toLowerCase());
 
-        // Ottengo lista di tutte le release del progetto
-        rel = getListRelease(NAMEPROJECT);
+        // in releases List metto tutte le release del progetto
+        rel = RetrieveJira.getListRelease(NAMEPROJECT);
 
-        // Ottengo lista di tutti i commit del repository (in Github)
-        com = getCommits(rel, repoPath);
+        // in commit List metto tutti i commit del progetto
+        com = RetrieveGit.getAllCommit(rel, repoPath);
 
-        //Ottengo una lista di tutti i ticket relativi al progetto (in jira)
-        tickets = getTickets(rel, NAMEPROJECT);
+        //prendo tutti i ticket da Jira in accordo alle specifiche
+        tickets = RetrieveJira.getTickets(rel, NAMEPROJECT);
 
 
         logger.log(Level.INFO, "Eseguo il linkage Tickets - Commits");
-        //linkage collegamento stabilito per tenere traccia delle modifiche apportate a un progetto sw e delle relative correzioni  di errori in questo modo si può tenere traccia di quale commit ha corretto un determinato problema
         linkage();
-        //rimuovi metà delle release e setta l'info su AV
         av(rel, tickets);
 
-        //pulizia inconsistenze
+
         control();
-        //ottenimento repository per informazioni
-        FileRepositoryBuilder repositoryBuilder = new FileRepositoryBuilder();
-        repository = repositoryBuilder.setGitDir(new File(repo)).readEnvironment() // scan environment GIT_* variables
-                .findGitDir() // scan up the file system tree
-                .setMustExist(true).build();
-    
-        //messaggio di log
+        RetrieveGit.setBuilder(repo);
         logger.log(Level.INFO, "Numero ticket = {0}.", tickets.size());
-        //inverte l'ordine degli elementi nella lista Tickelist. perché il metodo moving window
-        //richiede di scorrere la lista in ordine inverso per calcolare gli overlap tra le finestre temporali
-        //dei ticket. In questo modo il primo elemento della finestra inizia dal ticket più recente e non dal più vecchio
-        //per overlap si intende la finestra temporale comune tra due finestre temporali adiacenti
-        //questo permette di minimizzare la perdita di informazioni
-       
+
         Collections.reverse(tickets); //reverse perchè è moving window
-        
-        //metodo proportion
         Proportion.proportion(tickets);
-        
+
         control();   //devo rifarlo perchè, avendo settato nuovi IV, voglio togliere possibili incongruenze!
-        //ottieni file con estensione .java
-        
 
-            InitCommand init = Git.init();
-            init.setDirectory(repoPath.toFile());
+        RetrieveGit.getJavaFiles(repoPath, rel);
 
-            try (Git git = Git.open(repoPath.toFile())) {
-                for (Release release : rel) {
-                    List<String> fileNameList = new ArrayList<>();
-                    for (RevCommit commit : release.getCommitList()) {
-                        ObjectId treeId = commit.getTree();
-                        // now try to find a specific file, treewalk è proprio l'oggetto 'commit' iterato.
-                        try (TreeWalk treeWalk = new TreeWalk(git.getRepository())) { //creazione treeparser per il retrieve delle infod
-                            treeWalk.reset(treeId);
-                            treeWalk.setRecursive(true); //automaticamente entra nei sottoalberi
-                            while (treeWalk.next()) {
-                                addJavaFile(treeWalk, release, fileNameList);
-                            }
+        RetrieveGit.checkBuggyness(rel, tickets); //inizialmente buggyness = NO per ogni release
 
-                        } catch (IOException e) {
-                            logger.log(Level.SEVERE, "Error during the getJavaFiles operation.");
-                            System.exit(1);
-
-                        }
-                    }
-                }
-            }
-            for (int k = 0; k<rel.size(); k++) { //potrebbe esistere una release che non aggiunge nessun file, ma lavora sui precedenti!.
-                if(rel.get(k).getFileList().isEmpty()) {
-                    rel.get(k).setFileList(rel.get(k-1).getFileList());
-                }
-            }
-        
-
-        //verifica che siano buggati all'inizio sono tutti non buggy
-        checkBuggyness(rel, tickets); 
-        
         Metrics.calculateMetricsForReleases(rel, repo);
-        writeCSVBuggyness(rel, NAMEPROJECT.toLowerCase());
+        CSVCreator.writeCSVBuggyness(rel, NAMEPROJECT.toLowerCase());
 
     }
 
-    //linkage tra commit e ticket per ottenere il commit relativo a quel ticket.
+
     private static void linkage() {
         Iterator<Ticket> ticket = tickets.iterator();
 
@@ -185,7 +95,7 @@ public class MainClass {
 
             LocalDateTime resolutionDate = Collections.max(commitDateList);
             t.setResolutionDate(resolutionDate);
-            t.setFV(compareDateVersion(resolutionDate, rel));
+            t.setFV(RetrieveJira.compareDateVersion(resolutionDate, rel));
             t.getCommitList().addAll(com.stream()
                     .filter(commit -> {
                         String regex = "(?<![\\d\\w])" + ticketID + "(?![\\d\\w])";
@@ -197,8 +107,9 @@ public class MainClass {
         }
     }
 
+   
 
-    //rimuovo la metà delle release per evitare data missing
+
     public static void av(List<Release> rel, List<Ticket> tickets) {
 
         int releaseNumber = rel.size();
@@ -227,7 +138,8 @@ public class MainClass {
     }
 
 
-    //controllo che non ci siano dati non ammessi (ad esempio verifico che OV sia dopo IV)
+
+
     public static void control() {
         for (Ticket ticket : tickets) {
             if (ticket.getIV() == 0) {
@@ -255,486 +167,4 @@ public class MainClass {
         for (int i = ticket.getIV(); i <= rel.size(); i++) {
             ticket.getAV().add(i);
         }
-    }
-
-
-
-    
-
-    private static final String RELEASEDATE = "releaseDate";    //added for resolve code smells
-
-    private static String readAll(Reader reader) throws IOException {
-        StringBuilder stringBuilder = new StringBuilder();
-        int character;
-        while ((character = reader.read()) != -1) {
-            stringBuilder.append((char) character);
-        }
-        return stringBuilder.toString();
-    }
-
-    public static JSONObject readJsonFromUrl(String url) throws IOException, JSONException {
-        URL urlObject = new URL(url);
-
-        HttpURLConnection connection = (HttpURLConnection) urlObject.openConnection();
-        connection.setRequestMethod("GET");
-
-        try (BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream(), StandardCharsets.UTF_8))) {
-            String jsonText = readAll(reader);
-            return new JSONObject(jsonText);
-        } finally {
-            connection.disconnect();
-        }
-    }
-
-
-
-    /** OPERAZIONI PER OTTENERE LE RELEASE **/
-
-    public static List<Release> getListRelease(String projName) throws IOException, JSONException {
-        ArrayList<Release> releaseList = new ArrayList<>();
-
-        // Fills the arraylist with releases dates and orders them
-        // Ignores releases with missing dates
-        ArrayList<LocalDateTime> releasesOnlyDate = new ArrayList<>();
-        Map<LocalDateTime, String> releasesNameVersion = new HashMap<>();
-        Map<LocalDateTime, String> releasesID = new HashMap<>();
-        String url = "https://issues.apache.org/jira/rest/api/2/project/" + projName;
-        JSONObject json = readJsonFromUrl(url);
-        JSONArray versions = json.getJSONArray("versions");
-        for (int i = 0; i < versions.length(); i++) {
-            JSONObject version = versions.getJSONObject(i);
-            if (version.has(RELEASEDATE)) {
-                String name = version.getString("name");
-                String id = version.getString("id");
-                String releaseDate = version.getString(RELEASEDATE);
-                addRelease(releaseDate, name, id, releasesOnlyDate, releasesNameVersion, releasesID);
-            }
-        }
-        releasesOnlyDate.sort(LocalDateTime::compareTo); // Sorting based on date
-
-        createCSVReleases(projName, releasesID, releasesNameVersion, releasesOnlyDate); // Writing the releases to a CSV file
-
-        for (int j = 0; j < releasesOnlyDate.size(); j++) {
-            LocalDateTime releaseDatetime = releasesOnlyDate.get(j);
-            String releaseNameVersion = releasesNameVersion.get(releaseDatetime);
-            Release release = new Release(j + 1, releaseDatetime, releaseNameVersion);
-            releaseList.add(release);
-        }
-
-        return releaseList;
-    }
-
-    private static void addRelease(String releaseDate, String name, String id,
-                                   ArrayList<LocalDateTime> releasesOnlyDate,
-                                   Map<LocalDateTime, String> releasesNameVersion,
-                                   Map<LocalDateTime, String> releasesID) {
-        try {
-            LocalDate date = LocalDate.parse(releaseDate);
-            LocalDateTime dateTime = date.atStartOfDay();
-            if (!releasesOnlyDate.contains(dateTime)) {
-                releasesOnlyDate.add(dateTime);
-            }
-            releasesNameVersion.put(dateTime, name);
-            releasesID.put(dateTime, id);
-        } catch (DateTimeParseException e) {
-            String errorMessage = String.format("Error adding release with date %s, name %s, and id %s",
-                    releaseDate, name, id);
-            logger.log(Level.SEVERE, errorMessage, e);
-            // handle the exception appropriately, for example by returning a default value or presenting an error message to the user
-        }
-    }
-
-
-
-
-
-
-
-    /**  OPERAZIONI PER OTTENERE LE I TICKET **/
-
-
-    //adesso che ho info sulle release, voglio i ticket associati a queste release.
-    public static List<Ticket> getTickets(List<Release> releases, String projName) throws IOException {
-        // Creo una mappa per associare gli ID delle versioni alle loro posizioni all'interno della lista di release
-        Map<String, Integer> versionIndexMap = new HashMap<>();
-        for (int i = 0; i < releases.size(); i++) {
-            Release release = releases.get(i);
-            versionIndexMap.put(release.getName(), i);
-        }
-
-        // Creo una nuova lista di ticket
-        List<Ticket> tickets = new ArrayList<>();
-
-        // Ottengo la lista di ticket dalla API JIRA
-        int startAt = 0;
-        int maxResults = 1000;
-        int total;
-        do {
-            String url = "https://issues.apache.org/jira/rest/api/2/search?jql=project=%22"
-                    + projName + "%22AND%22issueType%22=%22Bug%22AND(%22status%22=%22closed%22OR"
-                    + "%22status%22=%22resolved%22)AND%22resolution%22=%22fixed%22&fields=key,resolutiondate,affectedVersion,versions,created&startAt="
-                    + startAt + "&maxResults=" + maxResults;
-
-            JSONObject json = readJsonFromUrl(url);
-            JSONArray issues = json.getJSONArray("issues");
-            total = json.getInt("total");
-
-            for (int i = 0; i < issues.length(); i++) {
-                JSONObject issue = issues.getJSONObject(i);
-                String key = issue.getString("key");
-
-                // Ottengo la data di creazione del ticket
-                LocalDateTime creationDate = LocalDateTime.parse(issue.getJSONObject("fields").getString("created").substring(0, 16));
-
-                // Ottengo le versioni interessate dal ticket
-                List<Integer> affectedVersions = new ArrayList<>();
-                JSONArray affectedVersionJsonArray = issue.getJSONObject("fields").getJSONArray("versions");
-                for (int j = 0; j < affectedVersionJsonArray.length(); j++) {
-                    String versionName = affectedVersionJsonArray.getJSONObject(j).getString("name");
-                    Integer versionIndex = versionIndexMap.get(versionName);
-                    if (versionIndex != null) {
-                        affectedVersions.add(versionIndex);
-                    }
-                }
-
-                // Costruisco il ticket
-                Ticket ticket = new Ticket(key, creationDate, affectedVersions);
-
-                // Setto l'IV del ticket
-                if (!affectedVersions.isEmpty()) {
-                    ticket.setIV(affectedVersions.get(0));
-                } else {
-                    ticket.setIV(0);
-                }
-
-                // Setto l'OV del ticket
-                ticket.setOV(compareDateVersion(creationDate, releases));
-
-                // Aggiungo il ticket alla lista
-                tickets.add(ticket);
-            }
-
-            startAt += maxResults;
-        } while (startAt < total);
-
-        return tickets;
-    }
-
-
-
-
-    private static List<Integer> getAV(JSONArray versions, List<Release> releases) {
-        List<Integer> listaAV = new ArrayList<>();
-        if (versions.length() == 0) {
-            listaAV.add(null); // non ci sono affected version
-            return listaAV;
-        }
-
-        for (int j = 0; j < versions.length(); j++) {
-            String av = versions.getJSONObject(j).getString("name"); // nome release affected (4.3.0)
-            Optional<Integer> releaseIndex = releases.stream()
-                .filter(r -> av.equals(r.getRelease()))
-                .map(Release::getIndex)
-                .findFirst();
-            listaAV.add(releaseIndex.orElse(null));
-        }
-
-        return listaAV;
-    }
-
-
-
-    public static int compareDateVersion(LocalDateTime date, List<Release> releases) {
-        int releaseIndex = -1;
-        for (Release release : releases) {
-            if (date.isEqual(release.getDate()) || date.isAfter(release.getDate())) {
-                releaseIndex = release.getIndex();
-            } else {
-                break;
-            }
-        }
-        return releaseIndex;
-    }
-
-
-
-    
-    public static void createCSVReleases(String projName, Map<LocalDateTime, String> releasesID, Map<LocalDateTime, String> releasesNameVersion, List<LocalDateTime> releasesOnlyDate) {
-        String fileName = projName.toLowerCase() + ".rel.csv";
-
-        try (CSVWriter csvWriter = new CSVWriter(new FileWriter(fileName))) {
-            String[] header = {"Index", "VersionID", "VersionName", "Date"};
-            csvWriter.writeNext(header);
-
-            for (int i = 0; i < releasesOnlyDate.size(); i++) {
-                int index = i + 1;
-                LocalDateTime releaseDate = releasesOnlyDate.get(i);
-                String releaseID = releasesID.get(releaseDate);
-                String releaseNameVersion = releasesNameVersion.get(releaseDate);
-                
-                String[] data = {Integer.toString(index), releaseID, releaseNameVersion, releaseDate.toString()};
-                csvWriter.writeNext(data);
-            }
-        } catch (IOException e) {
-            logger.log(Level.SEVERE, "Error in CSV Releases Lists", e);
-        }
-    }
-
-    
-    
-    
-    
-
-
-    public static void writeCSVBuggyness(List<Release> rel, String project) {
-
-    	try (FileWriter fileWriter = new FileWriter(project.toLowerCase()+".Buggyness.csv"))
-    	{
-    	    //creo file csv.
-    	    fileWriter.append("RELEASE,FILENAME,SIZE,LOC_added,MAX_LOC_Added,AVG_LOC_Added,CHURN,MAX_Churn,AVG_Churn,NR,NAUTH,CHGSETSIZE,MAX_ChgSet,AVG_ChgSet,BUGGYNESS\n");
-
-    	    for (Release release : rel) {
-    	        for (JavaFile file : release.getFileList()) {
-    	            //per ogni file appartenente alla release 'x'
-    	            fileWriter.append(release.getIndex().toString()).append(",");
-    	            fileWriter.append(file.getName()).append(","); //nome del file
-    	            fileWriter.append(file.getLOC().toString()).append(","); //LOC
-    	            fileWriter.append(file.getLOCadded().toString()).append(","); //LOC_added
-    	            if (file.getLOCadded().equals(0)) { //se non ho aggiunto nulla niente max e avg
-    	                fileWriter.append("0,0");
-    	            } else {
-    	                int maxLocAdded = Collections.max((file.getLocAddedList())); //prendo il max dalla lista
-    	                fileWriter.append(String.valueOf(maxLocAdded)).append(","); //scrivo tale massimo
-    	                int avgLocAdded = (int)file.getLocAddedList().stream().mapToInt(Integer::intValue).average().orElse(0.0); //easy way to avg
-    	                fileWriter.append(String.valueOf(avgLocAdded));
-    	            }
-    	            fileWriter.append(",").append(file.getChurn().toString());
-    	            if (file.getChurn().equals(0)) {
-    	                fileWriter.append(",0,0");
-    	            } else {
-    	                int maxChurn = Collections.max((file.getChurnList()));
-    	                fileWriter.append(",").append(String.valueOf(maxChurn));
-    	                int avgChurn = (int) file.getChurnList().stream().mapToInt(Integer::intValue).average().orElse(0.0); //easy way
-    	                fileWriter.append(",").append(String.valueOf(avgChurn));
-    	            }
-    	            fileWriter.append(",").append(file.getNr().toString());
-    	            int size = file.getNAuth().size();
-    	            fileWriter.append(",").append(String.valueOf(size));
-    	            fileWriter.append(",").append(file.getChgSetSize().toString());
-    	            if (file.getChgSetSize().equals(0)) {
-    	                fileWriter.append(",0,0");
-    	            } else {
-    	                int maxChgSet = Collections.max((file.getChgSetSizeList()));
-    	                fileWriter.append(",").append(String.valueOf(maxChgSet));
-    	                int avgChgSet = (int) file.getChgSetSizeList().stream().mapToInt(Integer::intValue).average().orElse(0.0); //da calcolare
-    	                fileWriter.append(",").append(String.valueOf(avgChgSet));
-    	            }
-    	            fileWriter.append(",").append(file.getBugg()).append("\n");
-    	            fileWriter.flush();
-    	        }
-    	    }
-    	} catch (Exception ex) {
-    	    logger.log(Level.SEVERE, "Error in writeCSVBuggyness");
-    	}
-    }
-
-
-// per arrotondare alla seconda cifra decimale!
-
-    public static void writeWekaCSV(List<WekaRecordi> wekaRecordList, String projName) {
-    	DecimalFormat df = new DecimalFormat("#.######", DecimalFormatSymbols.getInstance(Locale.US));
-    	try (FileWriter fileWriter = new FileWriter(projName.toLowerCase()+".WekaResults.csv")) {
-    	fileWriter.append("Dataset,#TrainingRelease,%training/total,%Defective/training,%Defective/testing,Classifier,"
-    	+ "Feature Selection,Balancing,Sensitivity,TP,FP,TN,FN,Precision,Recall,AUC,Kappa\n");
-        for(WekaRecordi entry : wekaRecordList) {
-            fileWriter.append(entry.getDatasetName()).append(",");
-            fileWriter.append(entry.getNumTrainingRelease().toString()).append(",");
-            fileWriter.append(df.format(entry.getTrainingPerc())).append(",");
-            fileWriter.append(df.format(entry.getDefectPercTrain())).append(",");
-            fileWriter.append(df.format(entry.getDefectPercTest())).append(",");
-            fileWriter.append(entry.getClassifierName()).append(",");
-            fileWriter.append(entry.getFeatureSelection()).append(",");
-            fileWriter.append(entry.getBalancing()).append(",");
-            fileWriter.append(entry.getSensitivity()).append(",");
-            fileWriter.append(entry.getTP().toString()).append(",");
-            fileWriter.append(entry.getFP().toString()).append(",");
-            fileWriter.append(entry.getTN().toString()).append(",");
-            fileWriter.append(entry.getFN().toString()).append(",");
-            fileWriter.append(df.format(entry.getPrecision())).append(",");
-            fileWriter.append(df.format(entry.getRecall())).append(",");
-            fileWriter.append(df.format(entry.getAuc())).append(",");
-            fileWriter.append(df.format(entry.getKappa())).append("\n");
-            fileWriter.flush();
-        }
-    } catch (Exception ex) {
-        logger.log(Level.SEVERE, "Error in writeWekaCSV");}
-    }
-
-private static Repository repository;
-private static final String FILE_EXTENSION = ".java";
-
-private static final String DELETE = "DELETE";
-private static final String MODIFY = "MODIFY";
-
-
-
-//path è percorso url repository
-
-public static List<RevCommit> getCommits(List<Release> releaseList, Path repo) throws GitAPIException, IOException {
-
-    ArrayList<RevCommit> com = new ArrayList<>(); //ritorno una lista di RevCommit, ciascuno che include tutte le informazioni di quel commit.
-
-
-    try (Git git = Git.open(repo.toFile())) { //access the git repository with JGit
-        Iterable<RevCommit> logs = git.log().all().call(); //get all the logs (i.e. commits) with call() method
-        for (RevCommit commit : logs) {
-            com.add(commit); //add the commit to the commitList
-            LocalDateTime commitDate = commit.getAuthorIdent().getWhen().toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime(); //get the commit date
-
-            int releaseIndex = MainClass.getReleaseIndex(commitDate, releaseList); //get the index of the release in which the commit was made
-            for (Release release : releaseList) { //add the commit to the corresponding release
-                if (release.getIndex() == releaseIndex) {
-                    release.getCommitList().add(commit); //add this commit to the list of commits for the release
-                }
-            }
-        }
-    }
-    return com; //return all the commits
-}
-
-
-
-
-private static void addJavaFile(TreeWalk treeWalk, Release release, List<String> fileNameList) throws IOException {
-
-    //goal: aggiungo il file java nella lista di file appartenenti alla release.
-    String filename = treeWalk.getPathString(); //nome del file
-    if (filename.endsWith(FILE_EXTENSION)) {  //path, dove il commit ha toccato.
-        JavaFile file = new JavaFile(filename); //creo nuova istanza file java con nome appena trovato.
-
-        if (!fileNameList.contains(filename)) { //se questo file non è mai stato 'visto' prima d'ora
-
-            fileNameList.add(filename);
-            file.setBugg("No");
-            file.setNr(0);
-            file.setNAuth(new ArrayList<>());
-            file.setChgSetSize(0);
-            file.setChgSetSizeList(new ArrayList<>());
-            file.setLOCadded(0);
-            file.setLocAddedList(new ArrayList<>());
-            file.setChurn(0);
-            file.setChurnList(new ArrayList<>());
-            file.setLOC(Metrics.countLinesOfFile(treeWalk, repository));
-            release.getFileList().add(file);
-        }
-    }
-}
-
-public static void checkBuggyness(List<Release> releaseList, List<Ticket> tickets) throws IOException {
-    //buggy definition: classi appartenenti all'insieme [IV,FV)
-    for (Ticket ticket : tickets) //prendo elemento ticket appartenente a tickets
-    {
-        List<Integer> av = ticket.getAV();
-        for (RevCommit commit : ticket.getCommitList()) //prendo i commit dalla lista di commit di quel ticket
-        {
-            List<DiffEntry> diffs = getDiffs(commit); //usato per differenze. Rappresenta singolo cambiamento ad un file (add remove modify).
-            if (diffs != null) {
-                analyzeDiffEntryBug(diffs, releaseList, av);
-            }
-        }
-    }
-
-}
-
-public static List<DiffEntry> getDiffs(RevCommit commit) throws IOException {
-    List<DiffEntry> diffs;
-    //SETTING DI DIFF FORMATTER
-    DiffFormatter diff = new DiffFormatter(DisabledOutputStream.INSTANCE);                                              //dove viene collocato il diff code. DisableOutput per throws exceptions.
-    diff.setRepository(repository);                                                                                    //repo sorgente che mantiene gli oggetti referenziati.
-    diff.setContext(0);                                                                                                //param = linee di codice da vedere prima della prima modifica e dopo l'ultima.
-    diff.setDetectRenames(true);                                                                                       // prima del rename devo usare setRepository, dopo posso ottenere l'istanza da getRenameDetector.
-
-    if (commit.getParentCount() != 0) //il commit ha un parente, vedo la differenza tra i due
-    {
-        RevCommit parent = (RevCommit) commit.getParent(0).getId(); //prendo id parent
-        diffs = diff.scan(parent.getTree(), commit.getTree()); //differenze tra alberi. E' del tipo DiffEntry[ADD/MODIFY/... pathfile]
-
-    } else {
-        RevWalk rw = new RevWalk(repository); //a RevWalk allows to walk over commits based on some filtering that is defined
-        diffs = diff.scan(new EmptyTreeIterator(), new CanonicalTreeParser(null, rw.getObjectReader(), commit.getTree())); //se un commit non ha un parent devo usare un emptytreeIterator.
-    }
-
-
-    return diffs;
-}
-
-
-public static void analyzeDiffEntryBug(List<DiffEntry> diffs, List<Release> rel, List<Integer> av)
-{
-
-    for (DiffEntry diff : diffs)
-    {
-        String type = diff.getChangeType().toString(); //prendo i cambiamenti
-
-        if (diff.toString().contains(FILE_EXTENSION) && type.equals(MODIFY) || type.equals(DELETE))
-        {
-
-            /*Check BUGGY, releaseCommit è contenuta in AV? se si file relase è buggy.
-            // se AV vuota -> faccio nulla, file già buggyness = nO.
-            ELSE: file buggy se release commit appartiene a AV del ticket. Quindi prendo nome file, la release dalla lista, e setto buggy. */
-
-            String file;
-            if (diff.getChangeType() == DiffEntry.ChangeType.DELETE || diff.getChangeType() == DiffEntry.ChangeType.RENAME )
-                {
-                    file = diff.getOldPath(); //file modificato
-                 }
-            else
-                { //MODIFY
-                    file = diff.getNewPath();
-                }
-
-            setBuggyness(file,rel, av);
-
-        }
-    }
-}
-
-public static void setBuggyness(String file, List<Release> rel, List<Integer> av) {
-    for (Release release : rel)
-    {
-        for (JavaFile javaFile : release.getFileList())
-
-        {
-            if (    (javaFile.getName().equals(file)) && (av.contains((release.getIndex())))    ) {
-                javaFile.setBugg("Yes");
-            }
-        }
-
-    }
-}
-
-/*Ticket mi dice che c'è un bug, questo bug ha toccato le release x,y,z. Ricordo che prendo tutti ticket risolti, ovvero so la release in qui li ho fixati.
-Il ticket include dei commit, i quali vanno a modificare dei file.java. Li modifico perchè quei file=classi hanno dei problemi, e li hanno dalla release x.
-Allora il file.java nelle release x,y,z avevano problemi, ovvero erano buggy.*/
-
-//utility di setup
-
-//Il metodo setBuilder prende come argomento una stringa repo che rappresenta 
-//la directory del repository Git da inizializzare. Utilizza il metodo FileRepositoryBuilder 
-//una classe di jGit per costruire una istanza di Repository a partire dalla directory specificata. 
-//In particolare FileRepositoryBuilder legge la configurazione di Git dal file .git/config presente 
-//della directory specificata e imposta le proprietà 
-//del repository. Il metodo readEnvironment() legge le variabili GIT_* e le utilizza 
-//per configurare il repository. Infine il metodo findGitDir cerca ricorsivamente 
-//il percorso della directory del repository Git risalendo dalla directory specificata 
-//fino alla root del file systema e imposta il repository se lo trova. 
-//Una volta inizializzato l'ogetto Repository viene memorizzato in una variabile statica 
-//repository che può essere utilizzata er eseguire operazioni sul repository. 
-//Se la directory del repository non esiste il meoto splleva una eccezione
-
-    
-
-
-
-
-}
+    }}
