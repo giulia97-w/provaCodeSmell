@@ -94,7 +94,7 @@ public class MainClass {
         //linkage collegamento stabilito per tenere traccia delle modifiche apportate a un progetto sw e delle relative correzioni  di errori in questo modo si può tenere traccia di quale commit ha corretto un determinato problema
         linkage();
         //rimuovi metà delle release e setta l'info su AV
-        AV(rel, tickets);
+        av(rel, tickets);
 
         //pulizia inconsistenze
         control();
@@ -199,7 +199,7 @@ public class MainClass {
 
 
     //rimuovo la metà delle release per evitare data missing
-    public static void AV(List<Release> rel, List<Ticket> tickets) {
+    public static void av(List<Release> rel, List<Ticket> tickets) {
 
         int releaseNumber = rel.size();
 
@@ -260,9 +260,7 @@ public class MainClass {
 
 
     
-    private static Map<LocalDateTime, String> releasesNameVersion;
-    private static Map<LocalDateTime, String> releasesID;
-    private static List<LocalDateTime> releasesOnlyDate;
+
     private static final String RELEASEDATE = "releaseDate";    //added for resolve code smells
 
     private static String readAll(Reader reader) throws IOException {
@@ -497,68 +495,41 @@ public class MainClass {
 
     	    for (Release release : rel) {
     	        for (JavaFile file : release.getFileList()) {
-
     	            //per ogni file appartenente alla release 'x'
-    	            fileWriter.append(release.getIndex().toString());
-    	            fileWriter.append(",");
-    	            fileWriter.append(file.getName()); //nome del file
-    	            fileWriter.append(",");
-    	            fileWriter.append(file.getLOC().toString()); //LOC
-    	            fileWriter.append(",");
-    	            fileWriter.append(file.getLOCadded().toString()); //LOC_added
-    	            fileWriter.append(",");
-
+    	            fileWriter.append(release.getIndex().toString()).append(",");
+    	            fileWriter.append(file.getName()).append(","); //nome del file
+    	            fileWriter.append(file.getLOC().toString()).append(","); //LOC
+    	            fileWriter.append(file.getLOCadded().toString()).append(","); //LOC_added
     	            if (file.getLOCadded().equals(0)) { //se non ho aggiunto nulla niente max e avg
-    	                fileWriter.append("0");
-    	                fileWriter.append(",");
-    	                fileWriter.append("0");
+    	                fileWriter.append("0,0");
     	            } else {
     	                int maxLocAdded = Collections.max((file.getLocAddedList())); //prendo il max dalla lista
-    	                fileWriter.append(String.valueOf(maxLocAdded)); //scrivo tale massimo
-    	                fileWriter.append(",");
+    	                fileWriter.append(String.valueOf(maxLocAdded)).append(","); //scrivo tale massimo
     	                int avgLocAdded = (int)file.getLocAddedList().stream().mapToInt(Integer::intValue).average().orElse(0.0); //easy way to avg
     	                fileWriter.append(String.valueOf(avgLocAdded));
     	            }
-    	            fileWriter.append(",");
-    	            fileWriter.append(file.getChurn().toString());
-    	            fileWriter.append(",");
-
+    	            fileWriter.append(",").append(file.getChurn().toString());
     	            if (file.getChurn().equals(0)) {
-    	                fileWriter.append("0");
-    	                fileWriter.append(",");
-    	                fileWriter.append("0");
+    	                fileWriter.append(",0,0");
     	            } else {
     	                int maxChurn = Collections.max((file.getChurnList()));
-    	                fileWriter.append(String.valueOf(maxChurn));
-    	                fileWriter.append(",");
+    	                fileWriter.append(",").append(String.valueOf(maxChurn));
     	                int avgChurn = (int) file.getChurnList().stream().mapToInt(Integer::intValue).average().orElse(0.0); //easy way
-    	                fileWriter.append(String.valueOf(avgChurn));
+    	                fileWriter.append(",").append(String.valueOf(avgChurn));
     	            }
-
-    	            fileWriter.append(",");
-    	            fileWriter.append(file.getNr().toString());
-    	            fileWriter.append(",");
+    	            fileWriter.append(",").append(file.getNr().toString());
     	            int size = file.getNAuth().size();
-    	            fileWriter.append(String.valueOf(size));
-    	            fileWriter.append(",");
-    	            fileWriter.append(file.getChgSetSize().toString());
-    	            fileWriter.append(",");
-
+    	            fileWriter.append(",").append(String.valueOf(size));
+    	            fileWriter.append(",").append(file.getChgSetSize().toString());
     	            if (file.getChgSetSize().equals(0)) {
-    	                fileWriter.append("0");
-    	                fileWriter.append(",");
-    	                fileWriter.append("0");
+    	                fileWriter.append(",0,0");
     	            } else {
     	                int maxChgSet = Collections.max((file.getChgSetSizeList()));
-    	                fileWriter.append(String.valueOf(maxChgSet));
-    	                fileWriter.append(",");
+    	                fileWriter.append(",").append(String.valueOf(maxChgSet));
     	                int avgChgSet = (int) file.getChgSetSizeList().stream().mapToInt(Integer::intValue).average().orElse(0.0); //da calcolare
-    	                fileWriter.append(String.valueOf(avgChgSet));
+    	                fileWriter.append(",").append(String.valueOf(avgChgSet));
     	            }
-
-    	            fileWriter.append(",");
-    	            fileWriter.append(file.getBugg());
-    	            fileWriter.append("\n");
+    	            fileWriter.append(",").append(file.getBugg()).append("\n");
     	            fileWriter.flush();
     	        }
     	    }
