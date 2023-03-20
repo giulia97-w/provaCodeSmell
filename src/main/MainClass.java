@@ -99,7 +99,11 @@ public class MainClass {
         //pulizia inconsistenze
         cleanTicketInconsistencies();
         //ottenimento repository per informazioni
-        setBuilder(repo);
+        FileRepositoryBuilder repositoryBuilder = new FileRepositoryBuilder();
+        repository = repositoryBuilder.setGitDir(new File(repo)).readEnvironment() // scan environment GIT_* variables
+                .findGitDir() // scan up the file system tree
+                .setMustExist(true).build();
+    
         //messaggio di log
         logger.log(Level.INFO, "Numero ticket = {0}.", ticketList.size());
         //inverte l'ordine degli elementi nella lista Tickelist. perché il metodo moving window
@@ -115,7 +119,42 @@ public class MainClass {
         
         cleanTicketInconsistencies();   //devo rifarlo perchè, avendo settato nuovi IV, voglio togliere possibili incongruenze!
         //ottieni file con estensione .java
-        getJavaFiles(repoPath, releasesList);
+        
+
+            InitCommand init = Git.init();
+            init.setDirectory(repoPath.toFile());
+
+            try (Git git = Git.open(repoPath.toFile())) {
+                for (Release release : releasesList) {
+                    List<String> fileNameList = new ArrayList<>();
+                    for (RevCommit commit : release.getCommitList()) {
+                        ObjectId treeId = commit.getTree();
+                        // now try to find a specific file, treewalk è proprio l'oggetto 'commit' iterato.
+                        try (TreeWalk treeWalk = new TreeWalk(git.getRepository())) { //creazione treeparser per il retrieve delle infod
+                            treeWalk.reset(treeId);
+                            treeWalk.setRecursive(true); //automaticamente entra nei sottoalberi
+                            while (treeWalk.next()) {
+                                addJavaFile(treeWalk, release, fileNameList);
+                            }
+
+                        } catch (IOException e) {
+                            logger.log(Level.SEVERE, "Error during the getJavaFiles operation.");
+                            System.exit(1);
+
+                        }
+                    }
+                }
+            }
+            for (int k = 0; k<releasesList.size(); k++) { //potrebbe esistere una release che non aggiunge nessun file, ma lavora sui precedenti!.
+                if(releasesList.get(k).getFileList().isEmpty()) {
+                    releasesList.get(k).setFileList(releasesList.get(k-1).getFileList());
+                }
+            }
+        
+        
+        
+        
+        
         //verifica che siano buggati all'inizio sono tutti non buggy
         checkBuggyness(releasesList, ticketList); 
         
@@ -586,38 +625,7 @@ public static List<RevCommit> getAllCommit(List<Release> releaseList, Path repo)
 
 
 
-public static void getJavaFiles(Path repoPath, List<Release> releasesList) throws IOException {
 
-    InitCommand init = Git.init();
-    init.setDirectory(repoPath.toFile());
-
-    try (Git git = Git.open(repoPath.toFile())) {
-        for (Release release : releasesList) {
-            List<String> fileNameList = new ArrayList<>();
-            for (RevCommit commit : release.getCommitList()) {
-                ObjectId treeId = commit.getTree();
-                // now try to find a specific file, treewalk è proprio l'oggetto 'commit' iterato.
-                try (TreeWalk treeWalk = new TreeWalk(git.getRepository())) { //creazione treeparser per il retrieve delle infod
-                    treeWalk.reset(treeId);
-                    treeWalk.setRecursive(true); //automaticamente entra nei sottoalberi
-                    while (treeWalk.next()) {
-                        addJavaFile(treeWalk, release, fileNameList);
-                    }
-
-                } catch (IOException e) {
-                    logger.log(Level.SEVERE, "Error during the getJavaFiles operation.");
-                    System.exit(1);
-
-                }
-            }
-        }
-    }
-    for (int k = 0; k<releasesList.size(); k++) { //potrebbe esistere una release che non aggiunge nessun file, ma lavora sui precedenti!.
-        if(releasesList.get(k).getFileList().isEmpty()) {
-            releasesList.get(k).setFileList(releasesList.get(k-1).getFileList());
-        }
-    }
-}
 
 
 
@@ -710,22 +718,26 @@ public static void analyzeDiffEntryBug(List<DiffEntry> diffs, List<Release> rele
                 { //MODIFY
                     file = diff.getNewPath();
                 }
-            
-            for (Release release : releasesList) {
-            	for(JavaFile javaFile: release.getFileList())
-            	{
-            		if (    (javaFile.getName().equals(file)) && (av.contains((release.getIndex())))    ) {
-                        javaFile.setBugg("Yes");
-                    
-            	}}}}}
-            
 
-            
+            setBuggyness(file,releasesList, av);
 
-        
-    
+        }
+    }
 }
 
+public static void setBuggyness(String file, List<Release> releasesList, List<Integer> av) {
+    for (Release release : releasesList)
+    {
+        for (JavaFile javaFile : release.getFileList())
+
+        {
+            if (    (javaFile.getName().equals(file)) && (av.contains((release.getIndex())))    ) {
+                javaFile.setBugg("Yes");
+            }
+        }
+
+    }
+}
 
 /*Ticket mi dice che c'è un bug, questo bug ha toccato le release x,y,z. Ricordo che prendo tutti ticket risolti, ovvero so la release in qui li ho fixati.
 Il ticket include dei commit, i quali vanno a modificare dei file.java. Li modifico perchè quei file=classi hanno dei problemi, e li hanno dalla release x.
@@ -745,12 +757,8 @@ Allora il file.java nelle release x,y,z avevano problemi, ovvero erano buggy.*/
 //Una volta inizializzato l'ogetto Repository viene memorizzato in una variabile statica 
 //repository che può essere utilizzata er eseguire operazioni sul repository. 
 //Se la directory del repository non esiste il meoto splleva una eccezione
-public static void setBuilder(String repo) throws IOException {
-    FileRepositoryBuilder repositoryBuilder = new FileRepositoryBuilder();
-    repository = repositoryBuilder.setGitDir(new File(repo)).readEnvironment() // scan environment GIT_* variables
-            .findGitDir() // scan up the file system tree
-            .setMustExist(true).build();
-}
+
+    
 
 
 
