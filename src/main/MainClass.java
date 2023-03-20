@@ -440,72 +440,60 @@ public class MainClass {
 
             for (Release release : releasesList) {
                 for (JavaFile file : release.getFileList()) {
-                    fileWriter.append(release.getIndex().toString())
+                    StringBuilder fileData = new StringBuilder();
+                    fileData.append(release.getIndex())
                             .append(",")
                             .append(file.getName())
                             .append(",")
-                            .append(file.getLOC().toString())
+                            .append(file.getLOC())
                             .append(",")
-                            .append(file.getLOCadded().toString())
+                            .append(file.getLOCadded())
                             .append(",");
 
-                    if (file.getLOCadded().equals(0)) {
-                        fileWriter.append("0").append(",").append("0");
-                    } else {
-                        int maxLocAdded = Collections.max(file.getLocAddedList());
-                        fileWriter.append(String.valueOf(maxLocAdded))
-                                .append(",");
-                        int avgLocAdded = (int) file.getLocAddedList().stream()
-                                .mapToInt(Integer::intValue)
-                                .average()
-                                .orElse(0.0);
-                        fileWriter.append(String.valueOf(avgLocAdded));
-                    }
-
-                    fileWriter.append(",")
-                            .append(file.getChurn().toString());
-
-                    if (file.getChurn().equals(0)) {
-                        fileWriter.append(",").append("0").append(",");
-                        fileWriter.append("0");
-                    } else {
-                        int maxChurn = Collections.max(file.getChurnList());
-                        fileWriter.append(",").append(String.valueOf(maxChurn)).append(",");
-                        int avgChurn = (int) file.getChurnList().stream()
-                                .mapToInt(Integer::intValue)
-                                .average()
-                                .orElse(0.0);
-                        fileWriter.append(String.valueOf(avgChurn));
-                    }
-
-                    fileWriter.append(",")
-                            .append(file.getNr().toString());
-
-                    int loc = file.getNAuth().size();
-                    fileWriter.append(",").append(String.valueOf(loc))
+                    List<Integer> locAddedList = file.getLocAddedList();
+                    int locAddedListSize = locAddedList.size();
+                    int maxLocAdded = locAddedListSize > 0 ? Collections.max(locAddedList) : 0;
+                    int avgLocAdded = locAddedListSize > 0 ? (int) locAddedList.stream().mapToInt(Integer::intValue).average().orElse(0.0) : 0;
+                    fileData.append(maxLocAdded)
                             .append(",")
-                            .append(file.getChgSetSize().toString());
+                            .append(avgLocAdded)
+                            .append(",")
+                            .append(file.getChurn());
 
-                    if (file.getChgSetSize().equals(0)) {
-                        fileWriter.append(",").append("0").append(",");
-                        fileWriter.append("0");
-                    } else {
-                        int maxChgSet = Collections.max(file.getChgSetSizeList());
-                        fileWriter.append(",").append(String.valueOf(maxChgSet)).append(",");
-                        int avgChgSet = (int) file.getChgSetSizeList().stream()
-                                .mapToInt(Integer::intValue)
-                                .average()
-                                .orElse(0.0);
-                        fileWriter.append(String.valueOf(avgChgSet));
-                    }
+                    List<Integer> churnList = file.getChurnList();
+                    int churnListSize = churnList.size();
+                    int maxChurn = churnListSize > 0 ? Collections.max(churnList) : 0;
+                    int avgChurn = churnListSize > 0 ? (int) churnList.stream().mapToInt(Integer::intValue).average().orElse(0.0) : 0;
+                    fileData.append(",")
+                            .append(maxChurn)
+                            .append(",")
+                            .append(avgChurn)
+                            .append(",")
+                            .append(file.getNr());
 
-                    fileWriter.append(",")
+                    int nAuthSize = file.getNAuth().size();
+                    fileData.append(",")
+                            .append(nAuthSize)
+                            .append(",")
+                            .append(file.getChgSetSize());
+
+                    List<Integer> chgSetSizeList = file.getChgSetSizeList();
+                    int chgSetSizeListSize = chgSetSizeList.size();
+                    int maxChgSet = chgSetSizeListSize > 0 ? Collections.max(chgSetSizeList) : 0;
+                    int avgChgSet = chgSetSizeListSize > 0 ? (int) chgSetSizeList.stream().mapToInt(Integer::intValue).average().orElse(0.0) : 0;
+                    fileData.append(",")
+                            .append(maxChgSet)
+                            .append(",")
+                            .append(avgChgSet)
+                            .append(",")
                             .append(file.getBugg())
-                            .append("\n")
-                            .flush();
+                            .append("\n");
+
+                    fileWriter.append(fileData.toString());
+                    fileWriter.flush();
                 }
             }
-        } catch (Exception ex) {
+        }  catch (Exception ex) {
             logger.log(Level.SEVERE, "Error in writeCSVBuggyness", ex);
         }
     }
