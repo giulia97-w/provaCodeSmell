@@ -115,7 +115,7 @@ public class MainClass {
         
         cleanTicketInconsistencies();   //devo rifarlo perchè, avendo settato nuovi IV, voglio togliere possibili incongruenze!
         //ottieni file con estensione .java
-        getJavaFiles(repoPath, releasesList);
+        processReleases(repoPath, releasesList);
         //verifica che siano buggati all'inizio sono tutti non buggy
         checkBuggyness(releasesList, ticketList); 
         
@@ -432,76 +432,93 @@ public class MainClass {
         }
     }
 
+    
+    
+    
+    
 
 
     public static void writeCSVBuggyness(List<Release> releasesList, String project) {
-        try (FileWriter fileWriter = new FileWriter(project.toLowerCase()+".Buggyness.csv")) {
-            String csvHeader = "RELEASE,FILENAME,LOC,LOC_added,MAX_LOC_Added,AVG_LOC_Added,CHURN,MAX_Churn,AVG_Churn,NR,NAUTH,CHGSETSIZE,MAX_ChgSet,AVG_ChgSet,BUGGYNESS\n";
-            fileWriter.append(csvHeader);
 
+        try (FileWriter fileWriter = new FileWriter(project.toLowerCase()+".Buggyness.csv"))
+        {
+            //creo file csv.
+            fileWriter.append("RELEASE,FILENAME,SIZE,LOC_added,MAX_LOC_Added,AVG_LOC_Added,CHURN,MAX_Churn,AVG_Churn,NR,NAUTH,CHGSETSIZE,MAX_ChgSet,AVG_ChgSet,BUGGYNESS\n");
             for (Release release : releasesList) {
+
                 for (JavaFile file : release.getFileList()) {
-                    fileWriter.append(release.getIndex().toString())
-                            .append(",")
-                            .append(file.getName()) //nome del file
-                            .append(",")
-                            .append(file.getLOC().toString()) //LOC
-                            .append(",")
-                            .append(file.getLOCadded().toString()); //LOC_added
+                    //per ogni file appartenente alla release 'x'
 
-                    int locAdded = file.getLOCadded();
-                    if (locAdded != 0) {
-                        int maxLocAdded = Collections.max((file.getLocAddedList())); //prendo il max dalla lista
-                        int avgLocAdded = (int) file.getLocAddedList().stream().mapToInt(Integer::intValue).average().orElse(0.0); //easy way to avg
-                        fileWriter.append(",").append(String.valueOf(maxLocAdded)) //scrivo tale massimo
-                                .append(",")
-                                .append(String.valueOf(avgLocAdded));
-                    } else {
-                        fileWriter.append(",0,0");
-                    }
-
-                    fileWriter.append(",")
-                            .append(file.getChurn().toString());
-
-                    int churn = file.getChurn();
-                    if (churn != 0) {
-                        int maxChurn = Collections.max((file.getChurnList()));
-                        int avgChurn = (int) file.getChurnList().stream().mapToInt(Integer::intValue).average().orElse(0.0); //easy way
-                        fileWriter.append(",").append(String.valueOf(maxChurn)).append(",")
-                                .append(String.valueOf(avgChurn));
-                    } else {
-                        fileWriter.append(",0,0");
-                    }
-
-                    fileWriter.append(",")
-                            .append(file.getNr().toString())
-                            .append(",")
-                            .append(String.valueOf(file.getNAuth().size())) //NAUTH
-                            .append(",")
-                            .append(file.getChgSetSize().toString());
-
-                    int chgSetSize = file.getChgSetSize();
-                    if (chgSetSize != 0) {
-                        int maxChgSet = Collections.max((file.getChgSetSizeList()));
-                        int avgChgSet = (int) file.getChgSetSizeList().stream().mapToInt(Integer::intValue).average().orElse(0.0);
-                        fileWriter.append(",").append(String.valueOf(maxChgSet)).append(",")
-                                .append(String.valueOf(avgChgSet));
-                    } else {
-                        fileWriter.append(",0,0");
-                    }
-
-                    fileWriter.append(",")
-                            .append(file.getBugg())
-                            .append("\n");
-                    fileWriter.flush();
+                    appendMetrics(fileWriter, release, file);
                 }
             }
         } catch (Exception ex) {
             logger.log(Level.SEVERE, "Error in writeCSVBuggyness");
         }
+
     }
 
+    private static void appendMetrics(FileWriter fileWriter, Release release, JavaFile file) throws IOException {
+        fileWriter.append(release.getIndex().toString());
+        fileWriter.append(",");
+        fileWriter.append(file.getName()); //nome del file
+        fileWriter.append(",");
+        fileWriter.append(file.getLOC().toString()); //LOC
+        fileWriter.append(",");
+        fileWriter.append(file.getLOCadded().toString()); //LOC_added
+        fileWriter.append(",");
 
+        if (file.getLOCadded().equals(0)) { //se non ho aggiunto nulla niente max e avg
+            fileWriter.append("0");
+            fileWriter.append(",");
+            fileWriter.append("0");
+        } else {
+            int maxLocAdded = Collections.max((file.getLocAddedList())); //prendo il max dalla lista
+            fileWriter.append(String.valueOf(maxLocAdded)); //scrivo tale massimo
+            fileWriter.append(",");
+            int avgLocAdded = (int)file.getLocAddedList().stream().mapToInt(Integer::intValue).average().orElse(0.0); //easy way to avg
+            fileWriter.append(String.valueOf(avgLocAdded));
+        }
+        fileWriter.append(",");
+        fileWriter.append(file.getChurn().toString());
+        fileWriter.append(",");
+        if (file.getChurn().equals(0)) {
+            fileWriter.append("0");
+            fileWriter.append(",");
+            fileWriter.append("0");
+        } else {
+            int maxChurn = Collections.max((file.getChurnList()));
+            fileWriter.append(String.valueOf(maxChurn));
+            fileWriter.append(",");
+            int avgChurn = (int) file.getChurnList().stream().mapToInt(Integer::intValue).average().orElse(0.0); //easy way
+            fileWriter.append(String.valueOf(avgChurn));
+        }
+        fileWriter.append(",");
+
+        fileWriter.append(file.getNr().toString());
+        fileWriter.append(",");
+        int size = file.getNAuth().size();
+        fileWriter.append(String.valueOf(size));
+        fileWriter.append(",");
+        fileWriter.append(file.getChgSetSize().toString());
+        fileWriter.append(",");
+        if (file.getChgSetSize().equals(0)) {
+            fileWriter.append("0");
+            fileWriter.append(",");
+            fileWriter.append("0");
+        } else {
+            int maxChgSet = Collections.max((file.getChgSetSizeList()));
+            fileWriter.append(String.valueOf(maxChgSet));
+            fileWriter.append(",");
+            int avgChgSet = (int) file.getChgSetSizeList().stream().mapToInt(Integer::intValue).average().orElse(0.0); //da calcolare
+            fileWriter.append(String.valueOf(avgChgSet));
+
+        }
+        fileWriter.append(",");
+        fileWriter.append(file.getBugg());
+        fileWriter.append("\n");
+        fileWriter.flush();
+    }
 
 
 // per arrotondare alla seconda cifra decimale!
@@ -569,8 +586,7 @@ public static List<RevCommit> getAllCommit(List<Release> releaseList, Path repo)
 
 
 
-public static void getJavaFiles(Path repoPath, List<Release> releasesList) throws IOException {
-
+public static void processReleases(Path repoPath, List<Release> releasesList) throws IOException {
     InitCommand init = Git.init();
     init.setDirectory(repoPath.toFile());
 
@@ -579,57 +595,42 @@ public static void getJavaFiles(Path repoPath, List<Release> releasesList) throw
             List<String> fileNameList = new ArrayList<>();
             for (RevCommit commit : release.getCommitList()) {
                 ObjectId treeId = commit.getTree();
-                // now try to find a specific file, treewalk è proprio l'oggetto 'commit' iterato.
-                try (TreeWalk treeWalk = new TreeWalk(git.getRepository())) { //creazione treeparser per il retrieve delle infod
+                try (TreeWalk treeWalk = new TreeWalk(git.getRepository())) {
                     treeWalk.reset(treeId);
-                    treeWalk.setRecursive(true); //automaticamente entra nei sottoalberi
+                    treeWalk.setRecursive(true);
                     while (treeWalk.next()) {
-                        addJavaFile(treeWalk, release, fileNameList);
+                        String filename = treeWalk.getPathString();
+                        if (filename.endsWith(FILE_EXTENSION)) {
+                            JavaFile file = new JavaFile(filename);
+                            if (!fileNameList.contains(filename)) {
+                                fileNameList.add(filename);
+                                file.setBugg("No");
+                                file.setNr(0);
+                                file.setNAuth(new ArrayList<>());
+                                file.setChgSetSize(0);
+                                file.setChgSetSizeList(new ArrayList<>());
+                                file.setLOCadded(0);
+                                file.setLocAddedList(new ArrayList<>());
+                                file.setChurn(0);
+                                file.setChurnList(new ArrayList<>());
+                                file.setLOC(Metrics.countLinesOfFile(treeWalk, git.getRepository()));
+                                release.getFileList().add(file);
+                            }
+                        }
                     }
-
                 } catch (IOException e) {
-                    logger.log(Level.SEVERE, "Error during the getJavaFiles operation.");
+                    logger.log(Level.SEVERE, "Error during the processReleases operation.");
                     System.exit(1);
-
                 }
+            }
+            if (release.getFileList().isEmpty() && !releasesList.isEmpty()) {
+                Release prevRelease = releasesList.get(releasesList.size() - 1);
+                release.setFileList(new ArrayList<>(prevRelease.getFileList()));
             }
         }
     }
-    for (int k = 0; k<releasesList.size(); k++) { //potrebbe esistere una release che non aggiunge nessun file, ma lavora sui precedenti!.
-        if(releasesList.get(k).getFileList().isEmpty()) {
-            releasesList.get(k).setFileList(releasesList.get(k-1).getFileList());
-        }
-    }
 }
 
-
-
-
-
-private static void addJavaFile(TreeWalk treeWalk, Release release, List<String> fileNameList) throws IOException {
-
-    //goal: aggiungo il file java nella lista di file appartenenti alla release.
-    String filename = treeWalk.getPathString(); //nome del file
-    if (filename.endsWith(FILE_EXTENSION)) {  //path, dove il commit ha toccato.
-        JavaFile file = new JavaFile(filename); //creo nuova istanza file java con nome appena trovato.
-
-        if (!fileNameList.contains(filename)) { //se questo file non è mai stato 'visto' prima d'ora
-
-            fileNameList.add(filename);
-            file.setBugg("No");
-            file.setNr(0);
-            file.setNAuth(new ArrayList<>());
-            file.setChgSetSize(0);
-            file.setChgSetSizeList(new ArrayList<>());
-            file.setLOCadded(0);
-            file.setLocAddedList(new ArrayList<>());
-            file.setChurn(0);
-            file.setChurnList(new ArrayList<>());
-            file.setLOC(Metrics.countLinesOfFile(treeWalk, repository));
-            release.getFileList().add(file);
-        }
-    }
-}
 
 public static void checkBuggyness(List<Release> releaseList, List<Ticket> ticketList) throws IOException {
     //buggy definition: classi appartenenti all'insieme [IV,FV)
