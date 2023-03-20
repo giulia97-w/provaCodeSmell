@@ -152,23 +152,11 @@ public class MainClass {
             }
         
         
-          //verifica che siano buggati all'inizio sono tutti non buggy
-                //buggy definition: classi appartenenti all'insieme [IV,FV)
-            for (Ticket ticket : ticketList) //prendo elemento ticket appartenente a ticketList
-                {
-                    List<Integer> av = ticket.getAV();
-                    for (RevCommit commit : ticket.getCommitList()) //prendo i commit dalla lista di commit di quel ticket
-                    {
-                        List<DiffEntry> diffs = getDiffs(commit); //usato per differenze. Rappresenta singolo cambiamento ad un file (add remove modify).
-                        if (diffs != null) {
-                            analyzeDiffEntryBug(diffs, releasesList, av);
-                        }
-                    }
-                }
-
-            
         
         
+        
+        //verifica che siano buggati all'inizio sono tutti non buggy
+        checkBuggyness(releasesList, ticketList); 
         
         Metrics.calculateMetricsForReleases(releasesList, repo);
         writeCSVBuggyness(releasesList, NAMEPROJECT.toLowerCase());
@@ -668,7 +656,21 @@ private static void addJavaFile(TreeWalk treeWalk, Release release, List<String>
     }
 }
 
+public static void checkBuggyness(List<Release> releaseList, List<Ticket> ticketList) throws IOException {
+    //buggy definition: classi appartenenti all'insieme [IV,FV)
+    for (Ticket ticket : ticketList) //prendo elemento ticket appartenente a ticketList
+    {
+        List<Integer> av = ticket.getAV();
+        for (RevCommit commit : ticket.getCommitList()) //prendo i commit dalla lista di commit di quel ticket
+        {
+            List<DiffEntry> diffs = getDiffs(commit); //usato per differenze. Rappresenta singolo cambiamento ad un file (add remove modify).
+            if (diffs != null) {
+                analyzeDiffEntryBug(diffs, releaseList, av);
+            }
+        }
+    }
 
+}
 
 public static List<DiffEntry> getDiffs(RevCommit commit) throws IOException {
     List<DiffEntry> diffs;
