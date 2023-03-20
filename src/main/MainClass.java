@@ -435,68 +435,72 @@ public class MainClass {
 
 
     public static void writeCSVBuggyness(List<Release> releasesList, String project) {
-        try (FileWriter fileWriter = new FileWriter(project.toLowerCase() + ".Buggyness.csv")) {
-            fileWriter.append("RELEASE,FILENAME,LOC,LOC_added,MAX_LOC_Added,AVG_LOC_Added,CHURN,MAX_Churn,AVG_Churn,NR,NAUTH,CHGSETSIZE,MAX_ChgSet,AVG_ChgSet,BUGGYNESS\n");
+        try (FileWriter fileWriter = new FileWriter(project.toLowerCase()+".Buggyness.csv")) {
+            String csvHeader = "RELEASE,FILENAME,LOC,LOC_added,MAX_LOC_Added,AVG_LOC_Added,CHURN,MAX_Churn,AVG_Churn,NR,NAUTH,CHGSETSIZE,MAX_ChgSet,AVG_ChgSet,BUGGYNESS\n";
+            fileWriter.append(csvHeader);
 
             for (Release release : releasesList) {
                 for (JavaFile file : release.getFileList()) {
-                    StringBuilder fileData = new StringBuilder();
-                    fileData.append(release.getIndex())
+                    fileWriter.append(release.getIndex().toString())
                             .append(",")
-                            .append(file.getName())
+                            .append(file.getName()) //nome del file
                             .append(",")
-                            .append(file.getLOC())
+                            .append(file.getLOC().toString()) //LOC
                             .append(",")
-                            .append(file.getLOCadded())
-                            .append(",");
+                            .append(file.getLOCadded().toString()); //LOC_added
 
-                    List<Integer> locAddedList = file.getLocAddedList();
-                    int locAddedListSize = locAddedList.size();
-                    int maxLocAdded = locAddedListSize > 0 ? Collections.max(locAddedList) : 0;
-                    int avgLocAdded = locAddedListSize > 0 ? (int) locAddedList.stream().mapToInt(Integer::intValue).average().orElse(0.0) : 0;
-                    fileData.append(maxLocAdded)
-                            .append(",")
-                            .append(avgLocAdded)
-                            .append(",")
-                            .append(file.getChurn());
+                    int locAdded = file.getLOCadded();
+                    if (locAdded != 0) {
+                        int maxLocAdded = Collections.max((file.getLocAddedList())); //prendo il max dalla lista
+                        int avgLocAdded = (int) file.getLocAddedList().stream().mapToInt(Integer::intValue).average().orElse(0.0); //easy way to avg
+                        fileWriter.append(",").append(String.valueOf(maxLocAdded)) //scrivo tale massimo
+                                .append(",")
+                                .append(String.valueOf(avgLocAdded));
+                    } else {
+                        fileWriter.append(",0,0");
+                    }
 
-                    List<Integer> churnList = file.getChurnList();
-                    int churnListSize = churnList.size();
-                    int maxChurn = churnListSize > 0 ? Collections.max(churnList) : 0;
-                    int avgChurn = churnListSize > 0 ? (int) churnList.stream().mapToInt(Integer::intValue).average().orElse(0.0) : 0;
-                    fileData.append(",")
-                            .append(maxChurn)
-                            .append(",")
-                            .append(avgChurn)
-                            .append(",")
-                            .append(file.getNr());
+                    fileWriter.append(",")
+                            .append(file.getChurn().toString());
 
-                    int nAuthSize = file.getNAuth().size();
-                    fileData.append(",")
-                            .append(nAuthSize)
-                            .append(",")
-                            .append(file.getChgSetSize());
+                    int churn = file.getChurn();
+                    if (churn != 0) {
+                        int maxChurn = Collections.max((file.getChurnList()));
+                        int avgChurn = (int) file.getChurnList().stream().mapToInt(Integer::intValue).average().orElse(0.0); //easy way
+                        fileWriter.append(",").append(String.valueOf(maxChurn)).append(",")
+                                .append(String.valueOf(avgChurn));
+                    } else {
+                        fileWriter.append(",0,0");
+                    }
 
-                    List<Integer> chgSetSizeList = file.getChgSetSizeList();
-                    int chgSetSizeListSize = chgSetSizeList.size();
-                    int maxChgSet = chgSetSizeListSize > 0 ? Collections.max(chgSetSizeList) : 0;
-                    int avgChgSet = chgSetSizeListSize > 0 ? (int) chgSetSizeList.stream().mapToInt(Integer::intValue).average().orElse(0.0) : 0;
-                    fileData.append(",")
-                            .append(maxChgSet)
+                    fileWriter.append(",")
+                            .append(file.getNr().toString())
                             .append(",")
-                            .append(avgChgSet)
+                            .append(String.valueOf(file.getNAuth().size())) //NAUTH
                             .append(",")
+                            .append(file.getChgSetSize().toString());
+
+                    int chgSetSize = file.getChgSetSize();
+                    if (chgSetSize != 0) {
+                        int maxChgSet = Collections.max((file.getChgSetSizeList()));
+                        int avgChgSet = (int) file.getChgSetSizeList().stream().mapToInt(Integer::intValue).average().orElse(0.0);
+                        fileWriter.append(",").append(String.valueOf(maxChgSet)).append(",")
+                                .append(String.valueOf(avgChgSet));
+                    } else {
+                        fileWriter.append(",0,0");
+                    }
+
+                    fileWriter.append(",")
                             .append(file.getBugg())
                             .append("\n");
-
-                    fileWriter.append(fileData.toString());
                     fileWriter.flush();
                 }
             }
-        }  catch (Exception ex) {
-            logger.log(Level.SEVERE, "Error in writeCSVBuggyness", ex);
+        } catch (Exception ex) {
+            logger.log(Level.SEVERE, "Error in writeCSVBuggyness");
         }
     }
+
 
 
 
