@@ -115,7 +115,7 @@ public class MainClass {
         
         cleanTicketInconsistencies();   //devo rifarlo perchè, avendo settato nuovi IV, voglio togliere possibili incongruenze!
         //ottieni file con estensione .java
-        processReleases(repoPath, releasesList);
+        getJavaFiles(repoPath, releasesList);
         //verifica che siano buggati all'inizio sono tutti non buggy
         checkBuggyness(releasesList, ticketList); 
         
@@ -586,7 +586,8 @@ public static List<RevCommit> getAllCommit(List<Release> releaseList, Path repo)
 
 
 
-public static void processReleases(Path repoPath, List<Release> releasesList) throws IOException {
+public static void getJavaFiles(Path repoPath, List<Release> releasesList) throws IOException {
+
     InitCommand init = Git.init();
     init.setDirectory(repoPath.toFile());
 
@@ -595,42 +596,57 @@ public static void processReleases(Path repoPath, List<Release> releasesList) th
             List<String> fileNameList = new ArrayList<>();
             for (RevCommit commit : release.getCommitList()) {
                 ObjectId treeId = commit.getTree();
-                try (TreeWalk treeWalk = new TreeWalk(git.getRepository())) {
+                // now try to find a specific file, treewalk è proprio l'oggetto 'commit' iterato.
+                try (TreeWalk treeWalk = new TreeWalk(git.getRepository())) { //creazione treeparser per il retrieve delle infod
                     treeWalk.reset(treeId);
-                    treeWalk.setRecursive(true);
+                    treeWalk.setRecursive(true); //automaticamente entra nei sottoalberi
                     while (treeWalk.next()) {
-                        String filename = treeWalk.getPathString();
-                        if (filename.endsWith(FILE_EXTENSION)) {
-                            JavaFile file = new JavaFile(filename);
-                            if (!fileNameList.contains(filename)) {
-                                fileNameList.add(filename);
-                                file.setBugg("No");
-                                file.setNr(0);
-                                file.setNAuth(new ArrayList<>());
-                                file.setChgSetSize(0);
-                                file.setChgSetSizeList(new ArrayList<>());
-                                file.setLOCadded(0);
-                                file.setLocAddedList(new ArrayList<>());
-                                file.setChurn(0);
-                                file.setChurnList(new ArrayList<>());
-                                file.setLOC(Metrics.countLinesOfFile(treeWalk, git.getRepository()));
-                                release.getFileList().add(file);
-                            }
-                        }
+                        addJavaFile(treeWalk, release, fileNameList);
                     }
+
                 } catch (IOException e) {
-                    logger.log(Level.SEVERE, "Error during the processReleases operation.");
+                    logger.log(Level.SEVERE, "Error during the getJavaFiles operation.");
                     System.exit(1);
+
                 }
             }
-            if (release.getFileList().isEmpty() && !releasesList.isEmpty()) {
-                Release prevRelease = releasesList.get(releasesList.size() - 1);
-                release.setFileList(new ArrayList<>(prevRelease.getFileList()));
-            }
+        }
+    }
+    for (int k = 0; k<releasesList.size(); k++) { //potrebbe esistere una release che non aggiunge nessun file, ma lavora sui precedenti!.
+        if(releasesList.get(k).getFileList().isEmpty()) {
+            releasesList.get(k).setFileList(releasesList.get(k-1).getFileList());
         }
     }
 }
 
+
+
+
+
+private static void addJavaFile(TreeWalk treeWalk, Release release, List<String> fileNameList) throws IOException {
+
+    //goal: aggiungo il file java nella lista di file appartenenti alla release.
+    String filename = treeWalk.getPathString(); //nome del file
+    if (filename.endsWith(FILE_EXTENSION)) {  //path, dove il commit ha toccato.
+        JavaFile file = new JavaFile(filename); //creo nuova istanza file java con nome appena trovato.
+
+        if (!fileNameList.contains(filename)) { //se questo file non è mai stato 'visto' prima d'ora
+
+            fileNameList.add(filename);
+            file.setBugg("No");
+            file.setNr(0);
+            file.setNAuth(new ArrayList<>());
+            file.setChgSetSize(0);
+            file.setChgSetSizeList(new ArrayList<>());
+            file.setLOCadded(0);
+            file.setLocAddedList(new ArrayList<>());
+            file.setChurn(0);
+            file.setChurnList(new ArrayList<>());
+            file.setLOC(Metrics.countLinesOfFile(treeWalk, repository));
+            release.getFileList().add(file);
+        }
+    }
+}
 
 public static void checkBuggyness(List<Release> releaseList, List<Ticket> ticketList) throws IOException {
     //buggy definition: classi appartenenti all'insieme [IV,FV)
@@ -673,7 +689,6 @@ public static List<DiffEntry> getDiffs(RevCommit commit) throws IOException {
 
 public static void analyzeDiffEntryBug(List<DiffEntry> diffs, List<Release> releasesList, List<Integer> av)
 {
-
     for (DiffEntry diff : diffs)
     {
         String type = diff.getChangeType().toString(); //prendo i cambiamenti
@@ -687,33 +702,29 @@ public static void analyzeDiffEntryBug(List<DiffEntry> diffs, List<Release> rele
 
             String file;
             if (diff.getChangeType() == DiffEntry.ChangeType.DELETE || diff.getChangeType() == DiffEntry.ChangeType.RENAME )
-                {
-                    file = diff.getOldPath(); //file modificato
-                 }
-            else
-                { //MODIFY
-                    file = diff.getNewPath();
-                }
-
-            setBuggyness(file,releasesList, av);
-
-        }
-    }
-}
-
-public static void setBuggyness(String file, List<Release> releasesList, List<Integer> av) {
-    for (Release release : releasesList)
-    {
-        for (JavaFile javaFile : release.getFileList())
-
-        {
-            if (    (javaFile.getName().equals(file)) && (av.contains((release.getIndex())))    ) {
-                javaFile.setBugg("Yes");
+            {
+                file = diff.getOldPath(); //file modificato
             }
-        }
+            else
+            { //MODIFY
+                file = diff.getNewPath();
+            }
 
+            for (Release release : releasesList)
+            {
+                for (JavaFile javaFile : release.getFileList())
+                {
+                    if (javaFile.getName().equals(file) && av.contains(release.getIndex()))
+                    {
+                        javaFile.setBugg("Yes");
+                    }
+                }
+            }
+
+        }
     }
 }
+
 
 /*Ticket mi dice che c'è un bug, questo bug ha toccato le release x,y,z. Ricordo che prendo tutti ticket risolti, ovvero so la release in qui li ho fixati.
 Il ticket include dei commit, i quali vanno a modificare dei file.java. Li modifico perchè quei file=classi hanno dei problemi, e li hanno dalla release x.
