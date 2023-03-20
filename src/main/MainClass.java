@@ -126,44 +126,41 @@ public class MainClass {
 
     //linkage tra commit e ticket per ottenere il commit relativo a quel ticket.
     private static void linkTicketCommits() {
-        for (Ticket ticket : ticketList) {
-            String ticketID = ticket.getID();
-            List<LocalDateTime> commitDateList = commitList.stream()
-                    .filter(commit -> existsLinkMessageCommit(commit.getFullMessage(), ticketID))
-                    .map(commit -> commit.getAuthorIdent().getWhen().toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime())
-                    .collect(Collectors.toList());
-
-            if (commitDateList.isEmpty()) {
-                continue;
-            }
-
-            LocalDateTime resolutionDate = Collections.max(commitDateList);
-            ticket.setResolutionDate(resolutionDate);
-            ticket.setFV(compareDateVersion(resolutionDate, releasesList));
-            ticket.getCommitList().addAll(commitList.stream()
-                    .filter(commit -> existsLinkMessageCommit(commit.getFullMessage(), ticketID))
-                    .collect(Collectors.toList()));
-        }
-    
-
-        //Rimuovo ticket che non hanno alcun commit associato, li riconosco perchè non hanno resolutationDate (data ultimo commit).
         Iterator<Ticket> ticket = ticketList.iterator();
 
         while (ticket.hasNext()) {
             Ticket t = ticket.next();
-            if (t.getResolutionDate() == null) {
+            String ticketID = t.getID();
+            List<LocalDateTime> commitDateList = commitList.stream()
+                    .filter(commit -> {
+                        // Verifica che il ticket ID sia presente nella stringa del commit, preceduto e seguito solo da caratteri non numerici o lettere.
+                        String regex = "(?<![\\d\\w])" + ticketID + "(?![\\d\\w])";
+                        Pattern pattern = Pattern.compile(regex, Pattern.CASE_INSENSITIVE);
+                        Matcher matcher = pattern.matcher(commit.getFullMessage());
+                        return matcher.find();
+                    })
+                    .map(commit -> commit.getAuthorIdent().getWhen().toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime())
+                    .collect(Collectors.toList());
+
+            if (commitDateList.isEmpty()) {
                 ticket.remove();
+                continue;
             }
+
+            LocalDateTime resolutionDate = Collections.max(commitDateList);
+            t.setResolutionDate(resolutionDate);
+            t.setFV(compareDateVersion(resolutionDate, releasesList));
+            t.getCommitList().addAll(commitList.stream()
+                    .filter(commit -> {
+                        String regex = "(?<![\\d\\w])" + ticketID + "(?![\\d\\w])";
+                        Pattern pattern = Pattern.compile(regex, Pattern.CASE_INSENSITIVE);
+                        Matcher matcher = pattern.matcher(commit.getFullMessage());
+                        return matcher.find();
+                    })
+                    .collect(Collectors.toList()));
         }
     }
 
-    private static boolean existsLinkMessageCommit(String message, String ticketID) {
-        // Verifica che il ticket ID sia presente nella stringa del commit, preceduto e seguito solo da caratteri non numerici o lettere.
-        String regex = "(?<![\\d\\w])" + ticketID + "(?![\\d\\w])";
-        Pattern pattern = Pattern.compile(regex, Pattern.CASE_INSENSITIVE);
-        Matcher matcher = pattern.matcher(message);
-        return matcher.find();
-    }
 
     //rimuovo la metà delle release per evitare data missing
     public static void removeHalfRelease(List<Release> releasesList, List<Ticket> ticketList) {
@@ -177,28 +174,23 @@ public class MainClass {
 
         releasesList.removeIf(release -> release.getIndex() > halfRelease);
 
-        removeAndSetAVTickets(halfRelease, ticketList);
-    }
-
-
-
-    public static void removeAndSetAVTickets(int halfRelease, List<Ticket> ticketList) {
-
         Iterator<Ticket> iterator = ticketList.iterator();
         while (iterator.hasNext()) {
-            Ticket t = iterator.next();
-            if (t.getIV() > halfRelease) {
+            Ticket ticket = iterator.next();
+            if (ticket.getIV() > halfRelease) {
                 iterator.remove();
-            } else if (t.getOV() > halfRelease || t.getFV() > halfRelease) {
-                int startIV = t.getIV();
-                int endIV = Math.min(halfRelease, t.getFV()); // l'intervallo di AV va da IV fino al minimo tra FV e halfRelease
-                List<Integer> affectedVersionsListByTicket = IntStream.rangeClosed(startIV, endIV)
-                    .boxed()
-                    .collect(Collectors.toList());
-                t.setAV(affectedVersionsListByTicket);
+            } else {
+                int endIV = Math.min(halfRelease, ticket.getFV());
+                if (ticket.getOV() > halfRelease) {
+                    ticket.setAV(IntStream.rangeClosed(ticket.getIV(), endIV).boxed().collect(Collectors.toList()));
+                } else {
+                    ticket.setAV(IntStream.rangeClosed(ticket.getIV(), Math.min(halfRelease, ticket.getFV())).boxed().collect(Collectors.toList()));
+                }
             }
         }
     }
+
+
 
 
 
@@ -206,77 +198,42 @@ public class MainClass {
     public static void cleanTicketInconsistencies() {
         for (Ticket ticket : ticketList) {
             if (ticket.getIV() == 0) {
-                handleUndefinedIV(ticket);
+                ticket.setIV(1);
+                ticket.getAV().clear();
+                for (int i = ticket.getIV(); i <= releasesList.size(); i++) {
+                    ticket.getAV().add(i);
+                }
             } else {
-                handleDefinedIV(ticket);
+                if (ticket.getFV() > ticket.getIV() && ticket.getOV() >= ticket.getIV()) {
+                    ticket.getAV().clear();
+                    for (int i = ticket.getIV(); i < ticket.getFV(); i++) {
+                        ticket.getAV().add(i);
+                    }
+                } else {
+                    ticket.setIV(0);
+                    ticket.getAV().clear();
+                    ticket.getAV().add(0);
+                }
+
+                if (ticket.getFV().equals(ticket.getIV())) {
+                    ticket.getAV().clear();
+                    ticket.getAV().add(0);
+                } else if (ticket.getOV() == 1) {
+                    ticket.getAV().clear();
+                    if (ticket.getFV() == 1) {
+                        ticket.setIV(1);
+                    } else {
+                        ticket.setIV(1);
+                        for (int i = ticket.getIV(); i < ticket.getFV(); i++) {
+                            ticket.getAV().add(i);
+                        }
+                    }
+                    ticket.getAV().add(0);
+                }
             }
         }
     }
 
-    private static void handleUndefinedIV(Ticket ticket) {
-        ticket.setIV(1);
-        ticket.getAV().clear();
-        for (int i = ticket.getIV(); i <= releasesList.size(); i++) {
-            ticket.getAV().add(i);
-        }
-    }
-
-    private static void handleDefinedIV(Ticket ticket) {
-        if (isCorrectIV(ticket)) {
-            updateCorrectIV(ticket);
-        } else {
-            handleInvalidIV(ticket);
-        }
-
-        if (isBaseCase(ticket)) {
-            handleBaseCase(ticket);
-        } else if (isFirstRelease(ticket)) {
-            handleFirstRelease(ticket);
-        }
-    }
-
-    private static boolean isCorrectIV(Ticket ticket) {
-        return ticket.getFV() > ticket.getIV() && ticket.getOV() >= ticket.getIV();
-    }
-
-    private static void updateCorrectIV(Ticket ticket) {
-        ticket.getAV().clear();
-        for (int i = ticket.getIV(); i < ticket.getFV(); i++) {
-            ticket.getAV().add(i);
-        }
-    }
-
-    private static void handleInvalidIV(Ticket ticket) {
-        ticket.setIV(0);
-        ticket.getAV().clear();
-        ticket.getAV().add(0);
-    }
-
-    private static boolean isBaseCase(Ticket ticket) {
-        return ticket.getFV().equals(ticket.getIV());
-    }
-
-    private static void handleBaseCase(Ticket ticket) {
-        ticket.getAV().clear();
-        ticket.getAV().add(0);
-    }
-
-    private static boolean isFirstRelease(Ticket ticket) {
-        return ticket.getOV() == 1;
-    }
-
-    private static void handleFirstRelease(Ticket ticket) {
-        ticket.getAV().clear();
-        if (ticket.getFV() == 1) {
-            ticket.setIV(1);
-        } else {
-            ticket.setIV(1);
-            for (int i = ticket.getIV(); i < ticket.getFV(); i++) {
-                ticket.getAV().add(i);
-            }
-        }
-        ticket.getAV().add(0);
-    }
 
 
     
