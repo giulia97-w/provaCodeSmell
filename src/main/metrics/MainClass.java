@@ -25,7 +25,7 @@ public class MainClass {
     private static List<Release> releasesList;
     private static List<Ticket> ticketList;
     private static List<RevCommit> commitList;
-    public static final String NAMEPROJECT = "BOOKKEEPER"; // OR 'AVRO'
+    public static final String NAMEPROJECT = "BOOKKEEPER"; 
 
 
     public static void main(String[] args) throws IllegalStateException, GitAPIException, IOException, JSONException {
@@ -107,10 +107,11 @@ public class MainClass {
     }
 
     private static boolean existsLinkMessageCommit(String message, String ticketID) {
-        // Senza questo check, potrei linkare commit contenente BOOKKEEPER-1074 con ticketID = 107 ad esempio, poichè contains ritornerebbe true.
-        return message.contains(ticketID + "\n") || message.contains(ticketID + " ") || message.contains(ticketID + ":")
-                || message.contains(ticketID + ".") || message.contains(ticketID + "/") || message.endsWith(ticketID) ||
-                message.contains(ticketID + "]") || message.contains(ticketID + "_") || message.contains(ticketID + "-") || message.contains(ticketID + ")");
+        // Utilizzo una regex per cercare una parola intera contenente il ticketID. In questo modo evito di linkare ticketID errati.
+        // La regex \b indica il bordo della parola, mentre \d+ indica una o più cifre.
+        // La regex nega il link se trova un carattere diverso da spazio, virgola, punto, parentesi quadra, trattino, slash o underscore subito prima o subito dopo il ticketID.
+        String regex = "(?<![\\w,.\\[\\]/_-])" + ticketID + "(?![\\w,.\\[\\]/_-])";
+        return message.matches(".*" + regex + ".*");
     }
 
 
@@ -148,34 +149,41 @@ public class MainClass {
 
     public static void cleanTicketInconsistencies() {
         for (Ticket ticket : ticketList) {
-            if (ticket.getIV() != 0) {
-                if (ticket.getFV() > ticket.getIV() && ticket.getOV() >= ticket.getIV()) { 
-                    ticket.getAV().clear(); 
-                    for (int i = ticket.getIV(); i < ticket.getFV(); i++) {
-                        ticket.getAV().add(i);
-                    }
-                } else {
-                    ticket.setIV(0);
-                    ticket.getAV().clear();
-                    ticket.getAV().add(0);
+            if (ticket.getIV() == 0) {
+                continue;
+            }
+            
+            int iv = ticket.getIV();
+            int fv = ticket.getFV();
+            int ov = ticket.getOV();
+            
+            List<Integer> av = ticket.getAV();
+            av.clear();
+            
+            if (fv > iv && ov >= iv) {
+                for (int i = iv; i < fv; i++) {
+                    av.add(i);
                 }
-                if (ticket.getFV().equals(ticket.getIV())) {
-                    ticket.getAV().clear();
-                    ticket.getAV().add(0);
-                }
-                if (ticket.getOV() == 1) {
-                    ticket.getAV().clear();
+            } else {
+                ticket.setIV(0);
+                av.add(0);
+            }
+            
+            if (fv == iv || ov == 1) {
+                av.clear();
+                av.add(0);
+                
+                if (ov == 1) {
                     ticket.setIV(1);
-                    if (ticket.getFV() == 1) {
-                        ticket.getAV().add(0);
-                    } else {
-                        for (int i = ticket.getIV(); i < ticket.getFV(); i++) {
-                            ticket.getAV().add(i);
+                    if (fv > 1) {
+                        for (int i = 1; i < fv; i++) {
+                            av.add(i);
                         }
                     }
                 }
             }
         }
     }
+
 
 }
