@@ -1,9 +1,8 @@
 package metrics;
-
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-
+import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.text.ParseException;
 import java.time.LocalDate;
@@ -12,7 +11,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.logging.Logger;
 import org.json.JSONException;
-
 import entities.Commit;
 import entities.FileCommitted;
 import entities.Release;
@@ -22,7 +20,8 @@ import entities.Ticket;
 public class Dataset {
 	
 	
-	public static final String TOKEN = "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";
+	
+	public static final String TOKEN = "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";
 	public static final String PROJECT = "BOOKKEEPER";
 	
 	public static void main(String[] args) throws JSONException, IOException, ParseException {
@@ -97,7 +96,6 @@ public class Dataset {
 	    
 	    return validTickets;
 	}
-
 	
 	// return the number of a release
 	
@@ -109,8 +107,6 @@ public class Dataset {
 	    }
 	    return -1;
 	}
-
-	
 	
 	//compare affected version to fix version
 	
@@ -137,11 +133,10 @@ public class Dataset {
 
 	    return tickets;
 	}
-
 	
 	//function that compute the iv's value
 	
-	public static void findProportion(Ticket t) {
+public static void findProportion(Ticket t) {
 		
 		String fixVersion = t.getFixVersions().get(0);
 		String openingVersion = t.getOpeningVersion();
@@ -166,232 +161,223 @@ public class Dataset {
 		}
 		t.setAffectedVersions(affectedVersions);
 	} 
-
 	
 	//compute the proportional number (calculate the moving window)
 	
-	public static float calculateProportion(Ticket t) {
-	    int numAffected = t.getAffectedVersions().size();
-	    int numAnalyzedBugs = 1;
-	    float proportion = numAffected / (float) numAnalyzedBugs;
-	    
-	    if (numAnalyzedBugs >= numBugs) {
-	        numAnalyzedBugs = 0;
-	        numAffected = 0;
-	    }
-	    
-	    return proportion;
-	}
+public static float calculateProportion(Ticket t) {
+    int numAffected = t.getAffectedVersions().size();
+    int numAnalyzedBugs = 1;
+    float proportion = numAffected / (float) numAnalyzedBugs;
+    
+    
+    
+    return proportion;
+}
 	
 	//creating the value that will be print in the file csv
 	
 public static void createDataset(List<Release> releases, List<Commit> commits, String projectName) throws FileNotFoundException {
+	
+	List<Result> results = new ArrayList<>();
+	List<HashMap<String,Result>> releaseMaps = new ArrayList<>();
+	List<FileCommitted> committedFiles = null;
+	Commit currentCommit = null;
+	
+	LocalDate currentReleaseDate = null;
 		
-		List<Result> results = new ArrayList<>();
-		List<HashMap<String,Result>> releaseMaps = new ArrayList<>();
-		List<FileCommitted> committedFiles = null;
-		Commit currentCommit = null;
+	LOGGER.info("Creating dataset...");
+	
+	for(int i = 0; i < releases.size()/2; i++) {
 		
-		LocalDate currentReleaseDate = null;
-			
-		LOGGER.info("Creating dataset...");
+		currentReleaseDate = releases.get(i).getReleaseDate();
 		
-		for(int i = 0; i < releases.size()/2; i++) {
-			
-			currentReleaseDate = releases.get(i).getReleaseDate();
-			
-			HashMap<String, Result> releaseMap = new HashMap<String, Result>();
-			releaseMaps.add(releaseMap);
-			
-			for(int j = 0; j < commits.size(); j++) {
-				currentCommit = commits.get(j);
-				if(currentCommit.getDate().compareTo(currentReleaseDate) < 0) {
-					committedFiles = currentCommit.getCommitFile();
-					if(!committedFiles.isEmpty()) {
-						addResult(releaseMaps, currentCommit, committedFiles, i, results);
-					}
-				}
-				else {
-					break;
+		HashMap<String, Result> releaseMap = new HashMap<>();
+		releaseMaps.add(releaseMap);
+		
+		for(int j = 0; j < commits.size(); j++) {
+			currentCommit = commits.get(j);
+			if(currentCommit.getDate().compareTo(currentReleaseDate) < 0) {
+				committedFiles = currentCommit.getCommitFile();
+				if(!committedFiles.isEmpty()) {
+					addResult(releaseMaps, currentCommit, committedFiles, i, results);
 				}
 			}
-			
-			commits.removeAll(results.get(results.size()-1).getCommitList());
-			results.get(results.size()-1).getCommitList().clear();
-			
+			else {
+				break;
+			}
 		}
 		
-		computeBugginess(releaseMaps);
-		
-		writeDataset(projectName, results);
+		commits.removeAll(results.get(results.size()-1).getCommitList());
+		results.get(results.size()-1).getCommitList().clear();
 		
 	}
-
+	
+	computeBugginess(releaseMaps);
+	
+	writeDataset(projectName, results);
+	
+}
 
 		
 	//take file and analyse it or using proportion or using the affected version take from jira
 	
-	private static void computeBugginess(List<HashMap<String, Result>> maps) {
-		
-		//Affected version
-		
-		int id;
-		Commit commit;		
-		List<FileCommitted> fileList = null;
-		List<Ticket> ticketList = new ArrayList<>();
-		List<String> affectedVersions = null;
-				
-		numAffected = 0;
-		numBugs = Math.round(tickets.size()/100);
-		numAnalyseBugs = 0;
-
-		ticketList = checkFixVersionTickets(tickets, release);
-
-		compareAffecteVersionToFixVersion(ticketList, release);
-		
-		for (Ticket ticket : ticketList) {
+private static void computeBugginess(List<HashMap<String, Result>> maps) {
+	
+	//Affected version
+	
+	int id;
+	Commit commit;		
+	List<FileCommitted> fileList = null;
+	List<Ticket> ticketList;
+	List<String> affectedVersions = null;
 			
-			commit = ticket.getCommitFix();
-			affectedVersions = ticket.getAffectedVersions();
+	numAffected = 0;
+	numBugs = Math.round(tickets.size()/100);
+	numAnalyseBugs = 0;
+
+	ticketList = checkFixVersionTickets(tickets, release);
+
+	compareAffecteVersionToFixVersion(ticketList, release);
+	
+	for (Ticket ticket : ticketList) {
+		
+		commit = ticket.getCommitFix();
+		affectedVersions = ticket.getAffectedVersions();
+		
+		if (commit == null || ticket.getFixVersions().isEmpty()) {
 			
-			if (commit == null || ticket.getFixVersions().isEmpty()) {
+			continue;
+			
+		} else {
+			
+			fileList = commit.getCommitFile();
+					
+			if (affectedVersions.isEmpty()) {
 				
-				continue;
+				// if there are no affected versions, use the proportion
 				
+				findProportion(ticket);
+				calculateProportion(ticket);
+										
 			} else {
 				
-				fileList = commit.getCommitFile();
-						
-				if (affectedVersions.isEmpty()) {
-					
-					// if there are no affected versions, use the proportion
-					
-					findProportion(ticket);
-					calculateProportion(ticket);
-											
-				} else {
-					
-					calculateProportion(ticket);
-					
-					for (String version : affectedVersions) {
-
-						id = getReleaseId(release, version);
-						checkVersion(fileList, maps, false, id);	
-						
-					}			
-					
-				}						
+				calculateProportion(ticket);
 				
-			}					
+				for (String version : affectedVersions) {
+
+					id = getReleaseId(release, version);
+					checkVersion(fileList, maps, false, id);	
+					
+				}			
+				
+			}						
 			
-			//fixed Version
+		}					
+		
+		//fixed Version
 
-			id = getReleaseId(release, ticket.getFixVersions().get(0));
+		id = getReleaseId(release, ticket.getFixVersions().get(0));
 
-			if (id < release.size()/2) {
+		if (id < release.size()/2) {
 
-				checkVersion(fileList, maps, true, id);
-
-			}
+			checkVersion(fileList, maps, true, id);
 
 		}
-		
-	} 
 
+	}
+	
+} 
 	
 	//check if a file is buggy or not
 
-	private static void checkVersion(List<FileCommitted> fileList, List<HashMap<String, Result>> maps, boolean updateFix, int releaseId) {
-	    Result result = null;
-	    // Check the specified release
-	    if (releaseId < release.size() / 2) {
-	        for (FileCommitted committedFile : fileList) {
-	            result = maps.get(releaseId).get(committedFile.getFilename());
-	            if (result != null) {
-	                result.setBuggy("Si");
-	                if (updateFix) {
-	                    result.addFix();
-	                }
-	            }
-	        }
-	    }
-	}
-
+private static void checkVersion(List<FileCommitted> fileList, List<HashMap<String, Result>> maps, boolean updateFix, int releaseId) {
+    Result result = null;
+    // Check the specified release
+    if (releaseId < release.size() / 2) {
+        for (FileCommitted committedFile : fileList) {
+            result = maps.get(releaseId).get(committedFile.getFilename());
+            if (result != null) {
+                result.setBuggy("Si");
+                if (updateFix) {
+                    result.addFix();
+                }
+            }
+        }
+    }
+}
 	
 	//check the file and, if it's not new update info, else create the new result
 		
-	private static void addResult(List<HashMap<String, Result>> maps, Commit commit, List<FileCommitted> fileList, int releaseIndex, List<Result> results) {
-	    for (FileCommitted file : fileList) {
-	        String filename = file.getFilename();
-	        Result result = maps.get(releaseIndex).get(filename);
-	        
-	        if (result == null) {
-	            // Create a new result object for this file in this release
-	            result = new Result(releaseIndex + 1, filename);
-	            maps.get(releaseIndex).put(filename, result);
-	            results.add(result);
-	        }
-	        
-	        // Update the metrics for this file in this release
-	        result.setSize(file.getSize());
-	        result.addLocTouched(file.getLineChange());
-	        result.addLocAdded(file.getLineAdded());
-	        result.addAuth(commit.getAuth());
-	        result.addRevision();
-	        result.addChgSetSize(fileList.size());
-	    }
-	}
-
+private static void addResult(List<HashMap<String, Result>> maps, Commit commit, List<FileCommitted> fileList, int releaseIndex, List<Result> results) {
+    for (FileCommitted file : fileList) {
+        String filename = file.getFilename();
+        Result result = maps.get(releaseIndex).get(filename);
+        
+        if (result == null) {
+            // Create a new result object for this file in this release
+            result = new Result(releaseIndex + 1, filename);
+            maps.get(releaseIndex).put(filename, result);
+            results.add(result);
+        }
+        
+        // Update the metrics for this file in this release
+        result.setSize(file.getSize());
+        result.addLocTouched(file.getLineChange());
+        result.addLocAdded(file.getLineAdded());
+        result.addAuth(commit.getAuth());
+        result.addRevision();
+        result.addChgSetSize(fileList.size());
+    }
+}
 	
 	//Write the dataset
 
-	public static void writeDataset(String project, List<Result> resultList) throws FileNotFoundException {
-	    String outname = project + "DatasetInfo.csv";
+public static void writeDataset(String project, List<Result> resultList) throws FileNotFoundException {
+    String outname = project + "DatasetInfo.csv";
 
-	    try (PrintWriter writer = new PrintWriter(new File(outname))) {
-	        writer.println("Release; File; Size; LocTouched; LocAdded; MaxLocAdded; AvgLocAdded; Nauth; Nfix; Nr; ChgSetSize; Buggy");
+    try (PrintWriter writer = new PrintWriter(new File(outname))) {
+        writer.println("Release; File; Size; LocTouched; LocAdded; MaxLocAdded; AvgLocAdded; Nauth; Nfix; Nr; ChgSetSize; Buggy");
 
-	        for (Result result : resultList) {
-	            writer.printf("%d; %s; %d; %d; %d; %d; %.2f; %d; %d; %d; %d; %s%n",
-	                result.getRelease(), result.getFile(), result.getSize(), result.getLocTouched(), result.getLocAdded(),
-	                result.getMaxLocAdded(), result.getAvgLocAdded(), result.getAuth(), result.getnFix(), result.getnR(),
-	                result.getChgSetSize(), result.getBuggy());
-	        }
-	    } 
-	}
-
+        for (Result result : resultList) {
+            writer.printf("%d; %s; %d; %d; %d; %d; %.2f; %d; %d; %d; %d; %s%n",
+                result.getRelease(), result.getFile(), result.getSize(), result.getLocTouched(), result.getLocAdded(),
+                result.getMaxLocAdded(), result.getAvgLocAdded(), result.getAuth(), result.getnFix(), result.getnR(),
+                result.getChgSetSize(), result.getBuggy());
+        }
+    } 
+}
 	
 	/*function that permitte to start retrieve information about the project*/
 	
-	public static void retrieveInfo(String projName, String token) throws JSONException, IOException, ParseException {
-		
-		//retrieve info about releases
-		release = GetMetrics.getReleaseInfo(projName);
-		
-		//retrieve info about tickets
-		tickets = GetMetrics.getTickets(projName, release);
-				
-		//associating release to tickets
-		GetMetrics.associatingReleaseToTickets(release, tickets);
-		
-		//retrieve info about commits
-		commits = GetMetrics.getCommits(projName, token, release);
-		
-		//associating commit to tickets
-		GetMetrics.associatingCommitToTickets(tickets, commits);
-		
-		//retrieve info about files
-		commitedFile = GetMetrics.getFile(commits, projName, token);
-		
-		//evaluation of the files' size
-		GetMetrics.calculateSizes(commitedFile);
+public static void retrieveInfo(String projName, String token) throws JSONException, IOException, ParseException {
+	
+	//retrieve info about releases
+	release = GetMetrics.getReleaseInfo(projName);
+	
+	//retrieve info about tickets
+	tickets = GetMetrics.getTickets(projName, release);
 			
-		//Create list of result
-		createDataset(release, commits, projName);
+	//associating release to tickets
+	GetMetrics.associatingReleaseToTickets(release, tickets);
+	
+	//retrieve info about commits
+	commits = GetMetrics.getCommits(projName, token, release);
+	
+	//associating commit to tickets
+	GetMetrics.associatingCommitToTickets(tickets, commits);
+	
+	//retrieve info about files
+	commitedFile = GetMetrics.getFile(commits, projName, token);
+	
+	//evaluation of the files' size
+	GetMetrics.calculateSizes(commitedFile);
 		
-		LOGGER.info("Dataset done!");
+	//Create list of result
+	createDataset(release, commits, projName);
 	
-	}
-	
+	LOGGER.info("Dataset done!");
+
+}
+
 
 }
