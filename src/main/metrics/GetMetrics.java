@@ -41,7 +41,7 @@ public final class GetMetrics {
 	
 	/* function that retrieve information about the release of the project */
 		
-public static List<Release> getReleaseInfo(String projName) throws JSONException, IOException, ParseException {
+public static List<Release> getReleaseInfo() throws JSONException, IOException, ParseException {
 		
 		List<Release> release = new ArrayList<>();
 		
@@ -95,8 +95,10 @@ public static List<Release> getReleaseInfo(String projName) throws JSONException
 	/* function that retrieve information about the ticket that have the date previous than 
 	 * 
 	 * the date of the release date (the first half of the project) */
+
 		
-	public static List<Ticket> getTickets(String projName, List<Release> release) throws JSONException, IOException{
+		
+	public static List<Ticket> getTickets(List<Release> release) throws JSONException, IOException{
 				  
 		//Searchs for all the tickets of type 'Bug' which have been resolved/closed
 		      
