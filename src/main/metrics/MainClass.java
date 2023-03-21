@@ -147,42 +147,48 @@ public class MainClass {
 
 
 
-    public static void cleanTicketInconsistencies() {
+    public static void clearTicketListInconsistencies(List<Ticket> ticketList) {
         for (Ticket ticket : ticketList) {
-            if (ticket.getIV() == 0) {
-                continue;
+            clearTicketInconsistencies(ticket);
+        }
+    }
+
+    public static void clearTicketInconsistencies(Ticket ticket) {
+        if (ticket.getIV() == 0) {
+            return;
+        }
+
+        int iv = ticket.getIV();
+        int fv = ticket.getFV();
+        int ov = ticket.getOV();
+
+        List<Integer> av = ticket.getAV();
+        av.clear();
+
+        if (fv > iv && ov >= iv) {
+            for (int i = iv; i < fv; i++) {
+                av.add(i);
             }
-            
-            int iv = ticket.getIV();
-            int fv = ticket.getFV();
-            int ov = ticket.getOV();
-            
-            List<Integer> av = ticket.getAV();
+        } else {
+            ticket.setIV(0);
+            av.add(0);
+        }
+
+        if (fv == iv || ov == 1) {
             av.clear();
-            
-            if (fv > iv && ov >= iv) {
-                for (int i = iv; i < fv; i++) {
-                    av.add(i);
-                }
-            } else {
-                ticket.setIV(0);
-                av.add(0);
-            }
-            
-            if (fv == iv || ov == 1) {
-                av.clear();
-                av.add(0);
-                
-                if (ov == 1) {
-                    ticket.setIV(1);
-                    if (fv > 1) {
-                        for (int i = 1; i < fv; i++) {
-                            av.add(i);
-                        }
+            av.add(0);
+
+            if (ov == 1) {
+                ticket.setIV(1);
+                if (fv > 1) {
+                    for (int i = 1; i < fv; i++) {
+                        av.add(i);
                     }
                 }
             }
         }
+    }
+
     }
 
 
