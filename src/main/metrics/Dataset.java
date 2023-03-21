@@ -21,7 +21,7 @@ public class Dataset {
 	
 	
 	
-	public static final String TOKEN = "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";
+	public static final String TOKEN = "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";
 	public static final String PROJECT = "BOOKKEEPER";
 	
 	public static void main(String[] args) throws JSONException, IOException, ParseException {
@@ -75,26 +75,33 @@ public class Dataset {
 	        List<String> affectedVersions = ticket.getAffectedVersions();
 	        
 	        if (!fixVersions.isEmpty() && !commits.isEmpty()) {
-	            while (fixVersions.size() > 1) {
-	                String fix1 = fixVersions.get(0);
-	                String fix2 = fixVersions.get(1);
-	                int idFix1 = getReleaseId(releases, fix1);
-	                int idFix2 = getReleaseId(releases, fix2);
-	                
-	                // keep the most recent fix version
-	                if (idFix1 > idFix2) {
-	                    fixVersions.remove(fix2);
-	                    affectedVersions.add(fix2);
-	                } else if (idFix1 < idFix2) {
-	                    fixVersions.remove(fix1);
-	                    affectedVersions.add(fix1);
-	                }
+	            if (fixVersions.size() > 1) {
+	                String mostRecentFix = getMostRecentFixVersion(fixVersions, releases);
+	                fixVersions.clear();
+	                fixVersions.add(mostRecentFix);
+	                affectedVersions.addAll(fixVersions);
 	            }
 	            validTickets.add(ticket);
 	        }
 	    }
 	    
 	    return validTickets;
+	}
+
+	private static String getMostRecentFixVersion(List<String> fixVersions, List<Release> releases) {
+		String mostRecentFix = fixVersions.get(0);
+		int idMostRecentFix = getReleaseId(releases, mostRecentFix);
+		
+		for (int i = 1; i < fixVersions.size(); i++) {
+			String currentFix = fixVersions.get(i);
+			int idCurrentFix = getReleaseId(releases, currentFix);
+			if (idCurrentFix > idMostRecentFix) {
+				mostRecentFix = currentFix;
+				idMostRecentFix = idCurrentFix;
+			}
+		}
+		
+		return mostRecentFix;
 	}
 	
 	// return the number of a release
@@ -222,71 +229,57 @@ public static void createDataset(List<Release> releases, List<Commit> commits, S
 	//take file and analyse it or using proportion or using the affected version take from jira
 	
 private static void computeBugginess(List<HashMap<String, Result>> maps) {
-	
-	//Affected version
-	
-	int id;
-	Commit commit;		
-	List<FileCommitted> fileList = null;
-	List<Ticket> ticketList;
-	List<String> affectedVersions = null;
-			
-	numAffected = 0;
-	numBugs = Math.round(tickets.size()/100);
-	numAnalyseBugs = 0;
+    int id;
+    Commit commit;        
+    List<FileCommitted> fileList = null;
+    List<Ticket> ticketList;
+    List<String> affectedVersions = null;
+            
+    numAffected = 0;
+    numBugs = Math.round(tickets.size()/100);
+    numAnalyseBugs = 0;
 
-	ticketList = checkFixVersionTickets(tickets, release);
+    ticketList = checkFixVersionTickets(tickets, release);
 
-	compareAffecteVersionToFixVersion(ticketList, release);
-	
-	for (Ticket ticket : ticketList) {
-		
-		commit = ticket.getCommitFix();
-		affectedVersions = ticket.getAffectedVersions();
-		
-		if (commit == null || ticket.getFixVersions().isEmpty()) {
-			
-			continue;
-			
-		} else {
-			
-			fileList = commit.getCommitFile();
-					
-			if (affectedVersions.isEmpty()) {
-				
-				// if there are no affected versions, use the proportion
-				
-				findProportion(ticket);
-				calculateProportion(ticket);
-										
-			} else {
-				
-				calculateProportion(ticket);
-				
-				for (String version : affectedVersions) {
+    compareAffecteVersionToFixVersion(ticketList, release);
+    
+    for (Ticket ticket : ticketList) {
+        
+        commit = ticket.getCommitFix();
+        affectedVersions = ticket.getAffectedVersions();
+        
+        if (commit == null || ticket.getFixVersions().isEmpty()) {
+            continue;
+        } else {
+            fileList = commit.getCommitFile();
+                    
+            if (affectedVersions.isEmpty()) {
+                // if there are no affected versions, use the proportion
+                int numAffected = ticket.getAffectedVersions().size();
+                int numAnalyzedBugs = 1;
+                float proportion = numAffected / (float) numAnalyzedBugs;
+                ticket.setProportion(proportion);
+                
+                findProportion(ticket);
+                calculateProportion(ticket);
+            } else {
+                calculateProportion(ticket);
+                
+                for (String version : affectedVersions) {
+                    id = getReleaseId(release, version);
+                    checkVersion(fileList, maps, false, id);    
+                }            
+            }                        
+        }                    
+        
+        id = getReleaseId(release, ticket.getFixVersions().get(0));
 
-					id = getReleaseId(release, version);
-					checkVersion(fileList, maps, false, id);	
-					
-				}			
-				
-			}						
-			
-		}					
-		
-		//fixed Version
+        if (id < release.size()/2) {
+            checkVersion(fileList, maps, true, id);
+        }
+    }
+}
 
-		id = getReleaseId(release, ticket.getFixVersions().get(0));
-
-		if (id < release.size()/2) {
-
-			checkVersion(fileList, maps, true, id);
-
-		}
-
-	}
-	
-} 
 	
 	//check if a file is buggy or not
 
@@ -349,6 +342,7 @@ public static void writeDataset(String project, List<Result> resultList) throws 
 	
 	/*function that permitte to start retrieve information about the project*/
 	
+
 public static void retrieveInfo(String projName, String token) throws JSONException, IOException, ParseException {
 	
 	//retrieve info about releases
@@ -367,7 +361,7 @@ public static void retrieveInfo(String projName, String token) throws JSONExcept
 	GetMetrics.associatingCommitToTickets(tickets, commits);
 	
 	//retrieve info about files
-	commitedFile = GetMetrics.getFile(commits, projName, token);
+	commitedFile = GetMetrics.searchCommittedFiles(commits, projName, token);
 	
 	//evaluation of the files' size
 	GetMetrics.calculateSizes(commitedFile);

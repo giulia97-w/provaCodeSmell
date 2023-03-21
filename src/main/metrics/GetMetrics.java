@@ -41,55 +41,48 @@ public final class GetMetrics {
 	
 	/* function that retrieve information about the release of the project */
 		
-public static List<Release> getReleaseInfo() throws JSONException, IOException, ParseException {
+	public static List<Release> getReleaseInfo() throws JSONException, IOException, ParseException {
 		
-		List<Release> release = new ArrayList<>();
-		
-		LOGGER.info("Searching release...");
-		
-		// Get release information using JIRA API
-		
-		String url = "https://issues.apache.org/jira/rest/api/2/project/" + NAMEPROJECT;
-		
-		JSONObject json = readJsonFromUrl(url);
-		
-		JSONArray versions = json.getJSONArray("versions");
-		
-		// Process only the releases that have a release date
-		
-		for (int i = 0; i < versions.length(); i++) {
+	    List<Release> release = new ArrayList<>();
+
+	    // Jira
 			
-			JSONObject version = versions.getJSONObject(i);
+	    String url = "https://issues.apache.org/jira/rest/api/2/project/" + NAMEPROJECT;
 			
-			if (version.has("releaseDate")) {
+	    JSONObject json = readJsonFromUrl(url);
+			
+	    JSONArray versions = json.getJSONArray("versions");
+			
+	    // Controllo sulle release che hanno una release date
+			
+	    for (Object obj : versions) {
 				
-				String strdate = version.getString("releaseDate").substring(0, 10);
-				LocalDate date = LocalDate.parse(strdate, formatter);
-				
-				String id = version.getString("id");
-				String versionName = version.getString("name");
-							
-				Release r = new Release(id, date, versionName);
-				release.add(r);
+	        if (obj instanceof JSONObject) {
+	            JSONObject version = (JSONObject) obj;
+	            
+	            if (version.has("releaseDate")) {
+					
+	                String strdate = version.getString("releaseDate").substring(0, 10);
+	                LocalDate date = LocalDate.parse(strdate, formatter);
+	                String id = version.getString("id");
+	                String versionName = version.getString("name");
+	                Release r = new Release(id, date, versionName);
+	                release.add(r);
+	            }     
+	        }
+	    }
 			
-			}
-		         
-		}
-		
-		// Sort releases by date
-		
-		release.sort(Comparator.comparing(Release::getReleaseDate));
-				   
-		if (release.size() < 6) {
-			LOGGER.info(release.size() + " release found!");
-			return release;
-		}
-		
-		LOGGER.info(release.size()/2 +" releases found!");
-						
-		return release;
-		
+	    // Ordina la lista in base alla data di release
+			
+	    release.sort(Comparator.comparing(Release::getReleaseDate));
+			
+	    if (release.size() < 6) {
+	        return release;
+	    }
+			
+	    return release;
 	}
+
 
 	
 	/* function that retrieve information about the ticket that have the date previous than 
@@ -108,7 +101,7 @@ public static List<Release> getReleaseInfo() throws JSONException, IOException, 
 		Integer i = 0;
 		int total = 1;
 	
-		do {
+		while (i < total) {
 		
 			//Only gets a max of 1000 at a time, so must do this multiple times if >1000
 	    
@@ -121,36 +114,24 @@ public static List<Release> getReleaseInfo() throws JSONException, IOException, 
 		            + "%22status%22=%22resolved%22)AND%22resolution%22=%22fixed%22&fields=key," 
 		            + "resolutiondate,versions,fixVersions,created&startAt=" + i.toString() + "&maxResults=" + j.toString();        
 		         
-			JSONObject json = readJsonFromUrl(url);
-		    
+			JSONObject json = readJsonFromUrl(url); 
 			JSONArray issues = json.getJSONArray("issues");
-		    
 			total = json.getInt("total");
-			
-			LOGGER.info("Searching tickets...");
+
 		    
 			for (; i < total && i < j; i++) {
 				
 				//retrieve information from tickets
 				
 				JSONObject ticket = issues.getJSONObject(i%1000);
-	        	
 				String key = issues.getJSONObject(i%1000).get("key").toString();
-				
 				List<String> affectedVersionList = new ArrayList<>();
-				
 				List<String> fixVersionList = new ArrayList<>();
-				
-				JSONObject field =ticket.getJSONObject("fields");
-								
+				JSONObject field =ticket.getJSONObject("fields");				
 				String strCreatedDate = field.get("created").toString();
-			
 				String formattedCreatedDate = strCreatedDate.substring(0,10);
-				
 				LocalDate createdDate = LocalDate.parse(formattedCreatedDate, formatter);
-				
 				LocalDate releaseDate = release.get(release.size()/2).getReleaseDate();
-				
 				//compare the ticket's date to the release's date
 				
 				if(createdDate.compareTo(releaseDate)<0) {
@@ -160,23 +141,16 @@ public static List<Release> getReleaseInfo() throws JSONException, IOException, 
 					 * the fuction get all information about the ticket and it is added to the list*/
 						
 					JSONArray affectedVersion = field.getJSONArray("versions");
-	
-					for(int k=0; k<affectedVersion.length(); k++) {
-							
-						String versionName = affectedVersion.getJSONObject(k).get("name").toString();
-													
+					for(int k=0; k<affectedVersion.length(); k++) {	
+						String versionName = affectedVersion.getJSONObject(k).get("name").toString();						
 						affectedVersionList.add(versionName);
 		
 					}	
 	
 					JSONArray fixVersion = field.getJSONArray("fixVersions");
-						
 					for(int z=0; z<fixVersion.length(); z++) {
-
 						String fixVersionName = fixVersion.getJSONObject(z).get("name").toString();
-		
 						fixVersionList.add(fixVersionName);
-						
 					}
 										
 					Ticket t = new Ticket(key, affectedVersionList, fixVersionList, createdDate); 
@@ -189,14 +163,12 @@ public static List<Release> getReleaseInfo() throws JSONException, IOException, 
 		               
 			}    
 		    
-		} while (i < total);
+		} 
 		
 		// order releases by date
 		
 		Collections.sort(tickets, (Ticket o1, Ticket o2) -> o1.getCreatedDate().compareTo(o2.getCreatedDate()));
-		
-		LOGGER.info(tickets.size()+" tickets found!");
-		     
+		LOGGER.info(tickets.size()+" tickets found!");    
 		return tickets;
 		  
 	}
@@ -236,15 +208,12 @@ public static List<Release> getReleaseInfo() throws JSONException, IOException, 
 			for(int i = 0; i < total; i++) {
 		        	
 				JSONObject commit = comm.getJSONObject(i).getJSONObject("commit");
-				   
 				String author = commit.getJSONObject("author").get("name").toString();
 				String message = commit.get("message").toString();
 				String strdate = commit.getJSONObject("committer").get("date").toString();
-				String sha = comm.getJSONObject(i).get("sha").toString();
-				   
+				String sha = comm.getJSONObject(i).get("sha").toString();   
 				String formattedDate = strdate.substring(0,10);
 				LocalDate date = LocalDate.parse(formattedDate, formatter);					
-					
 				LocalDate releaseDate = release.get(release.size() / 2).getReleaseDate();
 				   
 				//Take the commit from the first half of the project										
@@ -293,68 +262,71 @@ public static List<Release> getReleaseInfo() throws JSONException, IOException, 
 	
 	//get info of the files for all commit
 	
-	public static List<FileCommitted> getFile(List<Commit> commits, String projName, String token) throws UnsupportedEncodingException {
-		
-		List<FileCommitted> commitedFiles = new ArrayList<>();
-		LOGGER.info("Searching committed files...");
+	public static List<FileCommitted> searchCommittedFiles(List<Commit> commits, String projectName, String token) throws UnsupportedEncodingException {
+	    List<FileCommitted> committedFiles = new ArrayList<>();
+	    LOGGER.info("Searching committed Java files...");
 
-		for(Commit commit : commits) {
-			String sha = commit.getSha();
-			String url = "https://api.github.com/repos/apache/"+ projName +"/commits/"+ sha;
-			try {
-				JSONObject conn = jsonFromUrl(url, token);
-				JSONArray files = conn.getJSONArray("files");
-				for(int i=0; i<files.length(); i++) {
-					JSONObject file = files.getJSONObject(i);
-					String filename = file.getString("filename");
-					if(filename.endsWith(".java")) {
-						int changes = file.getInt("changes");
-						int deletions = file.getInt("deletions");
-						int additions = file.getInt("additions");	
-						LocalDate date = commit.getDate();
-						String contentUrl = file.getString("contents_url");
-						JSONObject conn2 = jsonFromUrl(contentUrl, token);
-						String content = conn2.getString("content");
-						byte[] contentByteArray = Base64.getMimeDecoder().decode(content);
-						String contentString = new String(contentByteArray);
-						FileCommitted f = new FileCommitted(filename, changes, deletions, additions, date, contentUrl, contentString);
-						commit.addCommitFile(f);
-						commitedFiles.add(f);
-					}
-				}
-				LOGGER.info(commit.getCommitFile().size() + " committed files (.java) found for commit " + sha);
-			}catch(Exception e) {
-				LOGGER.log(Level.SEVERE, "[ERROR]", e);
-				break;
-			}
-		}
-		LOGGER.info(commitedFiles.size() + " committed files found for all commits!");
-		return commitedFiles;
+	    for (Commit commit : commits) {
+	        String commitSha = commit.getSha();
+	        String commitUrl = "https://api.github.com/repos/apache/" + projectName + "/commits/" + commitSha;
+
+	        try {
+	            JSONObject commitJson = jsonFromUrl(commitUrl, token);
+	            JSONArray commitFiles = commitJson.getJSONArray("files");
+
+	            for (int i = 0; i < commitFiles.length(); i++) {
+	                JSONObject file = commitFiles.getJSONObject(i);
+	                String filename = file.getString("filename");
+	                if (filename.endsWith(".java")) {
+	                    int changes = file.getInt("changes");
+	                    int deletions = file.getInt("deletions");
+	                    int additions = file.getInt("additions");
+	                    LocalDate commitDate = commit.getDate();
+	                    String contentUrl = file.getString("contents_url");
+	                    JSONObject contentJson = jsonFromUrl(contentUrl, token);
+	                    String content = contentJson.getString("content");
+	                    byte[] contentBytes = Base64.getMimeDecoder().decode(content);
+	                    String contentString = new String(contentBytes);
+
+	                    FileCommitted committedFile = new FileCommitted(filename, changes, deletions, additions, commitDate, contentUrl, contentString);
+	                    commit.addCommitFile(committedFile);
+	                    committedFiles.add(committedFile);
+	                }
+	            }
+	            LOGGER.info(commit.getCommitFile().size() + " committed Java files found for commit " + commitSha);
+	        } catch (Exception e) {
+	            LOGGER.log(Level.SEVERE, "[ERROR]", e);
+	            break;
+	        }
+	    }
+	    LOGGER.info(committedFiles.size() + " committed files found for all commits!");
+	    return committedFiles;
 	}
+
 
 	
 	
 	//associating opened version to the ticket
 	
-	public static void associatingReleaseToTickets(List<Release> release, List<Ticket> tickets) {
-		
-		Collections.sort(tickets, Comparator.comparing(Ticket::getCreatedDate));
-		
-		for (int i = 0; i < release.size() - 1; i++) {
-			Release currentRelease = release.get(i);
-			Release nextRelease = release.get(i + 1);
-			
-			for(Ticket ticket : tickets) {
-				LocalDate createdDate = ticket.getCreatedDate();
-				if(createdDate.isBefore(currentRelease.getReleaseDate())) {
-					ticket.setOpeningVersion(currentRelease.getVersion());
-				} else if(createdDate.isAfter(currentRelease.getReleaseDate()) && createdDate.isBefore(nextRelease.getReleaseDate()) || createdDate.isEqual(currentRelease.getReleaseDate())) {
-					ticket.setOpeningVersion(nextRelease.getVersion());
-				}
-			}
-		}
+	public static void associatingReleaseToTickets(List<Release> releases, List<Ticket> tickets) {
 
+	    Collections.sort(tickets, Comparator.comparing(Ticket::getCreatedDate));
+	    
+	    for (int i = 0; i < releases.size() - 1; i++) {
+	        Release currentRelease = releases.get(i);
+	        Release nextRelease = releases.get(i + 1);
+
+	        for (Ticket ticket : tickets) {
+	            LocalDate createdDate = ticket.getCreatedDate();
+	            if (createdDate.isBefore(currentRelease.getReleaseDate())) {
+	                ticket.setOpeningVersion(currentRelease.getVersion());
+	            } else if (createdDate.isAfter(currentRelease.getReleaseDate()) && createdDate.isBefore(nextRelease.getReleaseDate()) || createdDate.isEqual(currentRelease.getReleaseDate())) {
+	                ticket.setOpeningVersion(nextRelease.getVersion());
+	            }
+	        }
+	    }
 	}
+
 
 	
 	//Returns the number of LOC in a file
@@ -368,54 +340,27 @@ public static List<Release> getReleaseInfo() throws JSONException, IOException, 
 	
 	public static int countComment(FileCommitted file) {
 
-		int count = 0;
+	    int count = 0;
+	    String content = file.getContent();
+	    boolean inBlockComment = false;
 
-		String content = file.getContent();
+	    for (String line : content.split("\\r?\\n")) {
+	        line = line.trim();
+	        if (line.startsWith("//") || (line.startsWith("/*") && line.endsWith("*/"))) {
+	            count++;
+	        } else if (line.startsWith("/*")) {
+	            inBlockComment = true;
+	            count++;
+	        } else if (line.endsWith("*/")) {
+	            inBlockComment = false;
+	            count++;
+	        } else if (inBlockComment) {
+	            count++;
+	        }
+	    }
+	    return count;
+	}
 
-		StringBuilder currentLine = new StringBuilder();
-
-		boolean inBlockComment = false;
-
-		for(char c : content.toCharArray()) {
-		    
-		    if(c == '\n') {
-		        
-		        String line = currentLine.toString().trim();
-		        
-		        if(line.startsWith("//") || (line.startsWith("/*") && line.endsWith("*/"))) {
-		            
-		            count++;
-		            
-		        } else if(line.startsWith("/*") && !line.endsWith("*/")) {
-		            
-		            inBlockComment = true;
-		            count++;
-		            
-		        } else if(line.endsWith("*/")) {
-		            
-		            inBlockComment = false;
-		            count++;
-		            
-		        }
-		        
-		        currentLine = new StringBuilder();
-		        
-		    } else {
-		        
-		        currentLine.append(c);
-		        
-		        if(inBlockComment) {
-		            count++;
-		        }
-		        
-		    }
-		    
-		}
-
-		return count;
-
-	 
-	}	
 	
 	// count the size of a file
 	
@@ -479,9 +424,6 @@ public static List<Release> getReleaseInfo() throws JSONException, IOException, 
 	    }
 	}
 
-
-	
-	
 	   
 	public static String readAll(Reader rd) throws IOException {
 	    StringWriter writer = new StringWriter();
