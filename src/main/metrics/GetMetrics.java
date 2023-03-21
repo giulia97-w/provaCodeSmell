@@ -445,34 +445,40 @@ public static List<Release> getReleaseInfo() throws JSONException, IOException, 
 	}
 
 	
-public static JSONObject jsonFromUrl(String url, String token) throws IOException {
-		
-		URL url2 = new URL(url);
-        HttpURLConnection connection = (HttpURLConnection) url2.openConnection();
+	public static JSONObject jsonFromUrl(String url, String token) throws IOException {
+	    URL url2 = new URL(url);
+	    HttpURLConnection connection = (HttpURLConnection) url2.openConnection();
 
-        connection.setRequestMethod("GET");
-        connection.setRequestProperty("Accept", "application/vnd.github.cloak-preview");
-        connection.setRequestProperty("Authorization", "token "+ token);
+	    connection.setRequestMethod("GET");
+	    connection.setRequestProperty("Accept", "application/vnd.github.cloak-preview");
+	    connection.setRequestProperty("Authorization", "token "+ token);
 
-        int responseCode = connection.getResponseCode();
+	    int responseCode = connection.getResponseCode();
 
-        if (responseCode != 200) {
-            throw new RuntimeException("HTTP error code: " + responseCode);
-        }
+	    if (responseCode != 200) {
+	        throw new HttpErrorException("HTTP error code: " + responseCode);
+	    }
 
-        BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream(), StandardCharsets.UTF_8));
-        StringBuilder responseBuilder = new StringBuilder();
+	    BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream(), StandardCharsets.UTF_8));
+	    StringBuilder responseBuilder = new StringBuilder();
 
-        String line;
-        while ((line = reader.readLine()) != null) {
-            responseBuilder.append(line);
-        }
+	    String line;
+	    while ((line = reader.readLine()) != null) {
+	        responseBuilder.append(line);
+	    }
 
-        reader.close();
-        connection.disconnect();
+	    reader.close();
+	    connection.disconnect();
 
-        return new JSONObject(responseBuilder.toString());
+	    return new JSONObject(responseBuilder.toString());
 	}
+
+	public static class HttpErrorException extends RuntimeException {
+	    public HttpErrorException(String message) {
+	        super(message);
+	    }
+	}
+
 
 	
 	
