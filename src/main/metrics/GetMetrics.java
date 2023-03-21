@@ -505,9 +505,16 @@ public static JSONObject jsonFromUrl(String url, String token) throws IOExceptio
 	        String jsonText = sb.toString();
 	        return new JSONArray(jsonText);
 	    } catch (JSONException e) {
-	        throw new RuntimeException("Failed to parse JSON array from URL: " + url, e);
+	        throw new JsonParsingException("Failed to parse JSON array from URL: " + url, e);
 	    } finally {
 	        urlConnection.disconnect();
 	    }
 	}
+
+	public static class JsonParsingException extends RuntimeException {
+	    public JsonParsingException(String message, Throwable cause) {
+	        super(message, cause);
+	    }
+	}
+
 }
