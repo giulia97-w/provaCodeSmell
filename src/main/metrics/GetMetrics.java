@@ -15,6 +15,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -345,7 +346,7 @@ public final class GetMetrics {
 	                
 	                String content = contentsObj.getString("content");
 	                byte[] decodedBytes = Base64.getMimeDecoder().decode(content);
-	                String decodedContent = new String(decodedBytes, "UTF-8");
+	                String decodedContent = new String(decodedBytes, StandardCharsets.UTF_8);
 	                
 	                FileCommitted fileCommitted = new FileCommitted(fileName, changes, deletions, additions, commitDate, contentsUrl, decodedContent);
 	                commit.addCommitFile(fileCommitted);
@@ -367,40 +368,29 @@ public final class GetMetrics {
 	
 	public static void associatingReleaseToTickets(List<Release> release, List<Ticket> tickets) {
 		
-		LocalDate rd = null;
+		LocalDate firstReleaseDate = release.get(0).getReleaseDate();
+		LocalDate lastReleaseDate = release.get(release.size()-1).getReleaseDate();
 		
-		LocalDate td = null;
+		Collections.sort(tickets, Comparator.comparing(Ticket::getCreatedDate));
 		
-		LocalDate dr = null;
-		
-		Collections.sort(tickets, (Ticket o1, Ticket o2) -> o1.getCreatedDate().compareTo(o2.getCreatedDate()));
-		
-		for (int i = 0; i <= release.size()/2-1; i++) {
-
-			rd = release.get(i).getReleaseDate();
-			
-			dr = release.get(i+1).getReleaseDate();
+		for (int i = 0; i < release.size()-1; i++) {
+			LocalDate currentReleaseDate = release.get(i).getReleaseDate();
+			LocalDate nextReleaseDate = release.get(i+1).getReleaseDate();
 			
 			for(int j = 0; j<tickets.size(); j++) {
+				LocalDate ticketCreatedDate = tickets.get(j).getCreatedDate();
 				
-				td = tickets.get(j).getCreatedDate();
-			
-				if(td.compareTo(release.get(0).getReleaseDate())<0 && !(td.isAfter(release.get(0).getReleaseDate()))) {
-										
+				if(ticketCreatedDate.compareTo(firstReleaseDate) < 0) {
 					tickets.get(j).setOpeningVersion(release.get(0).getVersion());
-												
-				} else if((td.compareTo(dr)<0 && td.compareTo(rd)>0) || td.compareTo(release.get(release.size()/2-1).getReleaseDate())>0 || td.compareTo(rd) == 0 ) {
-					
+				} else if(ticketCreatedDate.compareTo(lastReleaseDate) > 0) {
+					tickets.get(j).setOpeningVersion(release.get(release.size()-1).getVersion());
+				} else if(ticketCreatedDate.compareTo(currentReleaseDate) >= 0 && ticketCreatedDate.compareTo(nextReleaseDate) < 0) {
 					tickets.get(j).setOpeningVersion(release.get(i+1).getVersion());
-				
 				}
-				
 			}
-			
 		}
-	
 	}
-	
+
 	//Returns the number of LOC in a file
 	
 	public static int getLoc(FileCommitted file) {
