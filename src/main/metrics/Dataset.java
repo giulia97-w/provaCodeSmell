@@ -20,7 +20,7 @@ public class Dataset {
 	
 	
 	
-	public static final String TOKEN = "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";
+	public static final String TOKEN = "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";
 	public static final String PROJECT = "BOOKKEEPER";
 	
 	public static void main(String[] args) throws JSONException, IOException, ParseException {
@@ -45,7 +45,7 @@ public class Dataset {
 		commits = GetMetrics.getCommits(project, token, release);
 		
 		//associating commit to tickets
-		GetMetrics.associatingCommitToTickets(tickets, commits);
+		GetMetrics.associatingCommitsToTickets(tickets, commits);
 		
 		//retrieve info about files
 		commitedFile = GetMetrics.getFile(commits, project, token);
