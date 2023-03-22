@@ -393,71 +393,86 @@ public final class GetMetrics {
 
 	//Returns the number of LOC in a file
 	
-	public static int getLoc(FileCommitted file) {
+	public static void countSize(List<FileCommitted> fileList) {
 		
-		String[] lines;
-				
-		String content = file.getContent();
-		
-		lines = content.split("\n");
-		
-    	return lines.length;
+		for(int i=0; i < fileList.size(); i++) {
+			
+			FileCommitted file = fileList.get(i);
+			String content = file.getContent();
+			
+			String[] lines = content.split("\n");
+			int loc = lines.length;
+			
+			int comment = 0;
+			boolean inComment = false;
+			for (String line : lines) {
+				line = line.trim();
+				if (line.startsWith("//") || (inComment && line.endsWith("*/"))) {
+					comment++;
+					inComment = false;
+				} else if (line.startsWith("/*")) {
+					comment++;
+					inComment = true;
+				} else if (inComment) {
+					comment++;
+				}
+			}
+			
+			int size = loc - comment;
+			file.setSize(size);			
+			
+		}
 		
 	}
+
 	
 	//Returns the number of comments in a file
 	
 	public static int countComment(FileCommitted file) {
 
-		 int count = 0;
-		 
-		 String content = file.getContent();
-		 
-		 String[] lines = content.split("\n");
-		 
-		 for(int j=0; j < lines.length; j++) {
-			 
-			 if(lines[j].startsWith("//") || (lines[j].startsWith("/*") && lines[j].endsWith("*/"))) {
-				 
-				 count ++;
-				 	 
-			 } else if(lines[j].startsWith("/*") && !lines[j].endsWith("*/")) {
-				 
-				 int k = j;
-				 
-				 do {
-					 
-					 count ++;
-					 
-					 k++;
-				 
-				 }while (!lines[k].endsWith("*/") && k<lines.length-1); 
-		
-			 }
-			 
-		 }
-	 
-		 return count;
-	 
-	}	
+	    int count = 0;
+	    String content = file.getContent();
+	    String[] lines = content.split("\n");
+
+	    boolean inSingleLineComment = false;
+	    boolean inMultiLineComment = false;
+
+	    for (String line : lines) {
+	        line = line.trim();
+
+	        if (line.startsWith("//")) {
+	            if (!inMultiLineComment) {
+	                inSingleLineComment = true;
+	                count++;
+	            }
+	        } else if (line.startsWith("/*")) {
+	            if (!inSingleLineComment && !inMultiLineComment) {
+	                inMultiLineComment = true;
+	                count++;
+	            }
+	        }
+
+	        if (inSingleLineComment) {
+	            inSingleLineComment = false;
+	        }
+
+	        if (inMultiLineComment) {
+	            count++;
+	            if (line.endsWith("*/")) {
+	                inMultiLineComment = false;
+	            }
+	        }
+	    }
+
+	    return count;
+
+	}
+
+	
 	
 	// count the size of a file
 	
-	public static void countSize(List<FileCommitted> fileList) {
-		
-		for(int i=0; i < fileList.size(); i++) {
-			
-			int loc = getLoc(fileList.get(i));
-			
-			int comment = countComment(fileList.get(i));
-			
-			int size = loc - comment;
-			
-			fileList.get(i).setSize(size);			
-			
-		}
-		
-	}
+	
 	
 public static JSONObject readJsonFromUrl(String url) throws IOException, JSONException {
 	    
