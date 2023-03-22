@@ -430,43 +430,37 @@ public final class GetMetrics {
 	
 	public static int countComment(FileCommitted file) {
 
-	    int count = 0;
-	    String content = file.getContent();
-	    String[] lines = content.split("\n");
+		int count = 0;
+		String[] lines = file.getContent().split("\n");
 
-	    boolean inSingleLineComment = false;
-	    boolean inMultiLineComment = false;
+		boolean inSingleLineComment = false;
+		boolean inMultiLineComment = false;
 
-	    for (String line : lines) {
-	        line = line.trim();
+		for (String line : lines) {
+		    line = line.trim();
 
-	        if (line.startsWith("//")) {
-	            if (!inMultiLineComment) {
-	                inSingleLineComment = true;
-	                count++;
-	            }
-	        } else if (line.startsWith("/*")) {
-	            if (!inSingleLineComment && !inMultiLineComment) {
-	                inMultiLineComment = true;
-	                count++;
-	            }
-	        }
+		    if (line.startsWith("//")) {
+		        inSingleLineComment = true;
+		        count++;
+		    } else if (line.startsWith("/*")) {
+		        inMultiLineComment = true;
+		        count++;
+		    }
 
-	        if (inSingleLineComment) {
-	            inSingleLineComment = false;
-	        }
+		    if (inSingleLineComment && !line.contains("/*")) {
+		        inSingleLineComment = false;
+		    }
 
-	        if (inMultiLineComment) {
-	            count++;
-	            if (line.endsWith("*/")) {
-	                inMultiLineComment = false;
-	            }
-	        }
-	    }
+		    if (inMultiLineComment) {
+		        count++;
+		        if (line.endsWith("*/")) {
+		            inMultiLineComment = false;
+		        }
+		    }
+		}
 
-	    return count;
+		return count;}
 
-	}
 
 	
 	
