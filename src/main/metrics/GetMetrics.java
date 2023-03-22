@@ -33,7 +33,7 @@ public final class GetMetrics {
 	private GetMetrics() {}
 
 	private static final Logger LOGGER = Logger.getLogger(GetMetrics.class.getName());
-
+	public static final String DATE = "yyyy-MM-dd";
 	 
 	
 	/* function that retrieve information about the release of the project */
@@ -41,7 +41,7 @@ public final class GetMetrics {
 	public static List<Release> getReleaseInfo(String projName) throws JSONException, IOException, ParseException{
 		
 		List<Release> release = new ArrayList<>();
-		DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+		DateTimeFormatter formatter = DateTimeFormatter.ofPattern(DATE);
 		
 		//Jira
 		
@@ -101,7 +101,7 @@ public final class GetMetrics {
 		//Searchs for all the tickets of type 'Bug' which have been resolved/closed
 		      
 		List<Ticket> tickets = new ArrayList<>();
-		DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+		DateTimeFormatter formatter = DateTimeFormatter.ofPattern(DATE);
 
 		Integer j = 0;
 		Integer i = 0;
@@ -206,7 +206,7 @@ public final class GetMetrics {
 	public static List<Commit> getCommits(String projName, String token, List<Release> release) throws IOException, ParseException {
 		
 		LOGGER.info("Searching commit...");
-		DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+		DateTimeFormatter formatter = DateTimeFormatter.ofPattern(DATE);
 
 		List<Commit> commits = new ArrayList<>();
 	   
@@ -305,89 +305,60 @@ public final class GetMetrics {
 	
 	//get info of the files for all commit
 	
-	public static List<FileCommitted> getFile(List<Commit> commits, String projName, String token) throws UnsupportedEncodingException {
+	public static List<FileCommitted> getCommittedFiles(List<Commit> commits, String projectName, String token) throws UnsupportedEncodingException {
+	    List<FileCommitted> committedFiles = new ArrayList<>();
+	    LOGGER.info("Searching committed files...");
+	    
+	    for (Commit commit : commits) {
+	        String sha = commit.getSha();
+	        String url = "https://api.github.com/repos/apache/" + projectName + "/commits/" + sha;
+	        JSONObject conn;
+	        
+	        try {
+	            conn = jsonFromUrl(url, token);
+	        } catch (Exception e) {
+	            LOGGER.log(Level.SEVERE, "[ERROR]", e);
+	            break;
+	        }
+	        
+	        JSONArray files = conn.getJSONArray("files");
+	        
+	        for (int i = 0; i < files.length(); i++) {
+	            JSONObject fileObj = files.getJSONObject(i);
+	            String fileName = fileObj.getString("filename");
+	            
+	            // Consider only Java files
+	            if (fileName.endsWith(".java")) {
+	                int changes = fileObj.getInt("changes");
+	                int deletions = fileObj.getInt("deletions");
+	                int additions = fileObj.getInt("additions");
+	                LocalDate commitDate = commit.getDate();
+	                String contentsUrl = fileObj.getString("contents_url");
+	                JSONObject contentsObj;
+	                
+	                try {
+	                    contentsObj = jsonFromUrl(contentsUrl, token);
+	                } catch (Exception e) {
+	                    LOGGER.log(Level.SEVERE, "[ERROR]", e);
+	                    break;
+	                }
+	                
+	                String content = contentsObj.getString("content");
+	                byte[] decodedBytes = Base64.getMimeDecoder().decode(content);
+	                String decodedContent = new String(decodedBytes, "UTF-8");
+	                
+	                FileCommitted fileCommitted = new FileCommitted(fileName, changes, deletions, additions, commitDate, contentsUrl, decodedContent);
+	                commit.addCommitFile(fileCommitted);
+	                committedFiles.add(fileCommitted);
+	            }
+	        }
+	        
+	        LOGGER.info(commit.getCommitFile().size() + " committed files (.java) found for commit " + sha);
+	    }
 		
-		JSONObject conn = null;
-		JSONObject conn2 = null;
-		String sha;
+		LOGGER.info(committedFiles.size() + " committed files found for all commits!");
 		
-		List<FileCommitted> commitedFile = new ArrayList<>();
-		
-		LOGGER.info("Searching committed file...");
-		
-		for(int i = 0; i<commits.size(); i++) {
-			
-			sha = commits.get(i).getSha();
-				
-			String url1 = "https://api.github.com/repos/apache/"+ projName +"/commits/"+ sha;
-			   
-			   try {
-						
-				   conn = jsonFromUrl(url1, token);
-					
-			   }catch(Exception e) {
-						  					
-				   LOGGER.log(Level.SEVERE, "[ERROR]", e);
-				   break;
-						  
-			   }
-											
-			   JSONArray file = conn.getJSONArray("files");
-			   
-			   for(int j=0; j<file.length(); j++) {
-				
-				   String filename = file.getJSONObject(j).get("filename").toString();
-				   
-				   //Take only java file
-				   
-				   if(filename.contains(".java")) {
-					   
-					   int change = file.getJSONObject(j).getInt("changes");
-					   
-					   int delete = file.getJSONObject(j).getInt("deletions");
-					   
-					   int addLine = file.getJSONObject(j).getInt("additions");	
-					   
-					   LocalDate date = commits.get(i).getDate();
-					   
-					   String url = file.getJSONObject(j).get("contents_url").toString();
-						
-					   try {
-												   
-							conn2 = jsonFromUrl(url, token);
-			   
-						}catch(Exception e) {
-							 LOGGER.log(Level.SEVERE, "[ERROR]", e);
-							   break;
-									  
-						}
-					
-					   String content = conn2.get("content").toString();
-					   
-					   //endecode content in Base64
-					   
-					   byte[] contentByteArray = Base64.getMimeDecoder().decode(content);
-					   
-					   String contentString = new String(contentByteArray);
-					   
-					   //add file to commitFile
-
-					   FileCommitted f = new FileCommitted(filename, change, delete, addLine, date, url, contentString);
-					   
-					   commits.get(i).addCommitFile(f);
-					  
-					   commitedFile.add(f);
-				   
-				   }
-				      
-			   }
-			   
-			   LOGGER.info(commits.get(i).getCommitFile().size() + " committed files (.java) found for commit " + (i+1));
-		}
-		
-		LOGGER.info(commitedFile.size() + " committed files found for all commits!");
-		
-		return commitedFile;
+		return committedFiles;
 		
 	}
 	
