@@ -8,7 +8,6 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import java.util.logging.Logger;
 import org.json.JSONException;
 import entities.Commit;
 import entities.FileCommitted;
@@ -21,7 +20,7 @@ public class Dataset {
 	
 	
 	
-	public static final String TOKEN = "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";
+	public static final String TOKEN = "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";
 	public static final String PROJECT = "BOOKKEEPER";
 	
 	public static void main(String[] args) throws JSONException, IOException, ParseException {
@@ -98,11 +97,6 @@ public class Dataset {
 		    List<String> fixVersion;
 		    List<String> affectedVersion;
 
-		    int idFix1;
-		    int idFix2;
-		    String fix1;
-		    String fix2;
-
 		    for (int i = 0; i < tickets.size(); i++) {
 		        Ticket ticket = tickets.get(i);
 
@@ -114,24 +108,41 @@ public class Dataset {
 		        fixVersion = ticket.getFixVersions();
 		        affectedVersion = ticket.getAffectedVersions();
 
-		        while (fixVersion.size() > 1) {
-		            fix1 = fixVersion.get(0);
-		            fix2 = fixVersion.get(1);
+		        fixVersion = checkFixVersion(fixVersion, affectedVersion, release);
 
-		            idFix1 = getReleaseId(release, fix1);
-		            idFix2 = getReleaseId(release, fix2);
-
-		            if (idFix1 > idFix2) {
-		                fixVersion.remove(fix2);
-		                affectedVersion.add(fix2);
-		            } else if (idFix1 < idFix2) {
-		                fixVersion.remove(fix1);
-		                affectedVersion.add(fix1);
-		            }
-		        }
+		        ticket.setFixVersions(fixVersion);
+		        ticket.setAffectedVersions(affectedVersion);
 		    }
 
 		    return tickets;
+		}
+
+		private static List<String> checkFixVersion(List<String> fixVersion, List<String> affectedVersion, List<Release> release) {
+		    int idFix1;
+		    int idFix2;
+		    String fix1;
+		    String fix2;
+
+		    while (fixVersion.size() > 1) {
+		        fix1 = fixVersion.get(0);
+		        fix2 = fixVersion.get(1);
+
+		        idFix1 = getReleaseId(release, fix1);
+		        idFix2 = getReleaseId(release, fix2);
+
+		        if (idFix1 > idFix2) {
+		            fixVersion.remove(fix2);
+		            affectedVersion.add(fix2);
+		        } else if (idFix1 < idFix2) {
+		            fixVersion.remove(fix1);
+		            affectedVersion.add(fix1);
+		        } else {
+		            // Both fix versions have the same release date, remove one randomly
+		            fixVersion.remove((int) (Math.random() * 2));
+		        }
+		    }
+
+		    return fixVersion;
 		}
 
 			
