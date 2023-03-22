@@ -21,7 +21,7 @@ public class Dataset {
 	
 	
 	
-	public static final String TOKEN = "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";
+	public static final String TOKEN = "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";
 	public static final String PROJECT = "BOOKKEEPER";
 	
 	public static void main(String[] args) throws JSONException, IOException, ParseException {
@@ -63,7 +63,6 @@ public class Dataset {
 	
 	
 		
-		private static final Logger LOGGER = Logger.getLogger(Dataset.class.getName());
 		
 		static int numBugs;
 
@@ -189,9 +188,9 @@ public class Dataset {
 			//check value of fv and ov
 			
 			if(fvId<ovId) {
-	    		int var = ovId;
+	    		int versionId = ovId;
 	    		ovId = fvId;
-	    		fvId = var;	
+	    		fvId = versionId;	
 	    	}
 			
 			//compute injected version
@@ -237,7 +236,6 @@ public class Dataset {
 		public static void createDataset(List<Release> releases, List<Commit> commits, String projectName) throws FileNotFoundException {
 		    List<Result> results = new ArrayList<>();
 		    List<HashMap<String, Result>> releaseResults = new ArrayList<>();
-	
 
 		    // create a hashmap for each release
 		    for (int i = 0; i < releases.size() / 2; i++) {
@@ -294,9 +292,7 @@ public class Dataset {
 		        List<String> fixVersions = ticket.getFixVersions();
 		        
 		        // Se il commit è null o la lista di versioni di fix è vuota, passa al prossimo ticket
-		        if (commitFix == null || fixVersions.isEmpty()) {
-		            continue;
-		        }
+		        
 		        
 		        List<FileCommitted> fileList = commitFix.getCommitFile();
 		        
