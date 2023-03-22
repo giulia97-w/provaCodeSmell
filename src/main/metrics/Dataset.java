@@ -108,41 +108,12 @@ public class Dataset {
 		        fixVersion = ticket.getFixVersions();
 		        affectedVersion = ticket.getAffectedVersions();
 
-		        fixVersion = checkFixVersion(fixVersion, affectedVersion, release);
 
 		        ticket.setFixVersions(fixVersion);
 		        ticket.setAffectedVersions(affectedVersion);
 		    }
 
 		    return tickets;
-		}
-
-		private static List<String> checkFixVersion(List<String> fixVersion, List<String> affectedVersion, List<Release> release) {
-		    int idFix1;
-		    int idFix2;
-		    String fix1;
-		    String fix2;
-
-		    while (fixVersion.size() > 1) {
-		        fix1 = fixVersion.get(0);
-		        fix2 = fixVersion.get(1);
-
-		        idFix1 = getReleaseId(release, fix1);
-		        idFix2 = getReleaseId(release, fix2);
-
-		        if (idFix1 > idFix2) {
-		            fixVersion.remove(fix2);
-		            affectedVersion.add(fix2);
-		        } else if (idFix1 < idFix2) {
-		            fixVersion.remove(fix1);
-		            affectedVersion.add(fix1);
-		        } else {
-		            // Both fix versions have the same release date, remove one randomly
-		            fixVersion.remove((int) (Math.random() * 2));
-		        }
-		    }
-
-		    return fixVersion;
 		}
 
 			
@@ -401,7 +372,7 @@ public class Dataset {
 		}
 
 		
-		/*function that permitte to start retrieve information about the project*/
+
 		
 		
 	
