@@ -20,7 +20,7 @@ public class Dataset {
 	
 	
 	
-	public static final String TOKEN = "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";
+	public static final String TOKEN = "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";
 	public static final String PROJECT = "BOOKKEEPER";
 	
 	public static void main(String[] args) throws JSONException, IOException, ParseException {
@@ -54,7 +54,7 @@ public class Dataset {
 		GetMetrics.countSize(commitedFile);
 			
 		//Create list of result
-		createDataset(release, commits, project);
+		writeOnCsv(release, commits, project);
 		
 		
 	
@@ -93,9 +93,9 @@ public class Dataset {
 		    return !ticket.getFixVersions().isEmpty() && !ticket.getCommitsTicket().isEmpty();
 		}
 
-		public static List<Ticket> checkFixVersionTickets(List<Ticket> tickets) {
-		    List<String> fixVersion;
-		    List<String> affectedVersion;
+		public static List<Ticket> removeInconsistence(List<Ticket> tickets) {
+		    List<String> fv;
+		    List<String> av;
 
 		    for (int i = 0; i < tickets.size(); i++) {
 		        Ticket ticket = tickets.get(i);
@@ -105,12 +105,12 @@ public class Dataset {
 		            continue;
 		        }
 
-		        fixVersion = ticket.getFixVersions();
-		        affectedVersion = ticket.getAffectedVersions();
+		        fv = ticket.getFixVersions();
+		        av = ticket.getAffectedVersions();
 
 
-		        ticket.setFixVersions(fixVersion);
-		        ticket.setAffectedVersions(affectedVersion);
+		        ticket.setFixVersions(fv);
+		        ticket.setAffectedVersions(av);
 		    }
 
 		    return tickets;
@@ -122,7 +122,7 @@ public class Dataset {
 		
 		// return the number of a release
 		
-		public static int getReleaseId(List<Release> releases, String version) {
+		public static int releaseNumber(List<Release> releases, String version) {
 		    for (Release release : releases) {
 		        if (release.getVersion().equals(version)) {
 		            return releases.indexOf(release);
@@ -136,16 +136,16 @@ public class Dataset {
 		
 		//compare affected version to fix version
 		
-		public static List<Ticket> compareAffecteVersionToFixVersion(List<Ticket> tickets, List<Release> release) {
+		public static List<Ticket> verifyAv(List<Ticket> tickets, List<Release> release) {
 		    for (int i = 0; i < tickets.size(); i++) {
 		        Ticket ticket = tickets.get(i);
 		        List<String> fixVersion = ticket.getFixVersions();
 		        if (!fixVersion.isEmpty()) {
 		            for (int j = 0; j < ticket.getAffectedVersions().size(); j++) {
-		                String affectedVersion = ticket.getAffectedVersions().get(j);
-		                int idFix = getReleaseId(release, fixVersion.get(0));
-		                int idAffected = getReleaseId(release, affectedVersion);
-		                if (idAffected > idFix) {
+		                String av = ticket.getAffectedVersions().get(j);
+		                int fvId = releaseNumber(release, fixVersion.get(0));
+		                int avId = releaseNumber(release, av);
+		                if (avId > fvId) {
 		                    ticket.setAffectedVersions(new ArrayList<>());
 		                    break;
 		                }
@@ -164,8 +164,8 @@ public class Dataset {
 			
 			String fv = t.getFixVersions().get(0);
 			String ov = t.getOpeningVersion();
-			int fvId = getReleaseId(release, fv) + 1;
-			int ovId = getReleaseId(release, ov) + 1;
+			int fvId = releaseNumber(release, fv) + 1;
+			int ovId = releaseNumber(release, ov) + 1;
 			
 			//check value of fv and ov
 			
@@ -192,112 +192,109 @@ public class Dataset {
 		
 		//compute the proportional number (calculate the moving window)
 		
-		public static float calculateProportion(List<Ticket> tickets) {
-		    int numAffected = 0;
-		    int numAnalyseBugs = 0;
-		    int numBugs = tickets.size();
-		    float p = 0.0f;
-
-		    for (Ticket t : tickets) {
-		        numAffected += t.getAffectedVersions().size();
-		        numAnalyseBugs++;
-
-		        if (numAnalyseBugs == numBugs) {
-		            p = numAffected / (float) numAnalyseBugs;
-		            numAnalyseBugs = 0;
-		            numAffected = 0;
-		        }
+		public static float proportion(List<Ticket> tickets) {
+		    int totalAffected = 0;
+		    int totalTickets = tickets.size();
+		    
+		    for (Ticket ticket : tickets) {
+		        totalAffected += ticket.getAffectedVersions().size();
 		    }
-
-		    return p;
+		    
+		    if (totalTickets > 0) {
+		        return (float) totalAffected / totalTickets;
+		    } else {
+		        return 0.0f;
+		    }
 		}
+
 
 		
 		//creating the value that will be print in the file csv
 		
-		public static void createDataset(List<Release> releases, List<Commit> commits, String projectName) throws FileNotFoundException {
-		    List<Result> results = new ArrayList<>();
-		    List<HashMap<String, Result>> releaseResults = new ArrayList<>();
+		public static void writeOnCsv(List<Release> lists, List<Commit> c, String project) throws FileNotFoundException {
+			List<Result> list = new ArrayList<>();
+			List<HashMap<String, Result>> listRes = new ArrayList<>();
 
 		    // create a hashmap for each release
-		    for (int i = 0; i < releases.size() / 2; i++) {
-		        releaseResults.add(new HashMap<String, Result>());
-		    }
+		
+			for (int i = 0; i < list.size() / 2; i++) {
+			    listRes.add(new HashMap<String, Result>());
+			}
 
-		    // add commit results to release hashmaps
-		    for (Commit c : commits) {
-		        LocalDate commitDate = c.getDate();
+			// add commit results to release hashmaps
+			for (Commit com : c) {
+			    LocalDate date = com.getDate();
 
-		        // check if commit is before the first release
-		        if (commitDate.compareTo(releases.get(0).getReleaseDate()) < 0) {
-		            continue;
-		        }
+			    // check if commit is before the first release
+			    if (date.compareTo(lists.get(0).getReleaseDate()) < 0) {
+			        continue;
+			    }
 
-		        // find the release index for the commit
-		        int releaseIndex = 0;
-		        for (Release r : releases) {
-		            if (commitDate.compareTo(r.getReleaseDate()) < 0) {
-		                break;
-		            }
-		            releaseIndex++;
-		        }
-		        releaseIndex--; // use the previous release index
+			    // find the release index for the commit
+			    int i = 0;
+			    for (Release release : lists) {
+			        if (date.compareTo(release.getReleaseDate()) < 0) {
+			            break;
+			        }
+			        i++;
+			    }
+			    i--; // use the previous release index
 
-		        List<FileCommitted> fileList = c.getCommitFile();
-		        if (!fileList.isEmpty()) {
-		            addResult(releaseResults, c, fileList, releaseIndex, results);
-		        }
-		    }
+			    List<FileCommitted> fileList = com.getCommitFile();
+			    if (!fileList.isEmpty()) {
+			        addResult(listRes, com, fileList, i, list);
+			    }
+			}
 
-		    computeBugginess(releaseResults);
+			isBuggy(listRes);
 
-		    // write the dataset to a .csv file
-		    writeDataset(projectName, results);
+			// write the dataset to a .csv file
+			getDs(project, list);
 		}
 
 			
 		//take file and analyse it or using proportion or using the affected version take from jira
 		
-		private static void computeBugginess(List<HashMap<String, Result>> maps) {
+		private static void isBuggy(List<HashMap<String, Result>> maps) {
 		    
 		    
 		    // Lista di ticket filtrati per la versione di fix
-		    List<Ticket> ticketList = checkFixVersionTickets(tickets, release);
+		    List<Ticket> list = removeInconsistence(tickets);
 		    
 		    // Confronta la versione di fix con le versioni colpite e aggiorna il ticket di conseguenza
-		    compareAffecteVersionToFixVersion(ticketList, release);
+		    verifyAv(list, release);
 		    
-		    for (int i = 0; i < ticketList.size(); i++) {
-		        Ticket ticket = ticketList.get(i);
-		        Commit commitFix = ticket.getCommitFix();
-		        List<String> affectedVersions = ticket.getAffectedVersions();
-		        List<String> fixVersions = ticket.getFixVersions();
+		    for (int i = 0; i < list.size(); i++) {
+		        Ticket ticket = list.get(i);
+		        Commit com = ticket.getCommitFix();
+		        List<String> av = ticket.getAffectedVersions();
+		        List<String> fv = ticket.getFixVersions();
 		        
 		        // Se il commit è null o la lista di versioni di fix è vuota, passa al prossimo ticket
 		        
 		        
-		        List<FileCommitted> fileList = commitFix.getCommitFile();
+		        List<FileCommitted> fileList = com.getCommitFile();
 		        
 		        // Se non ci sono versioni colpite, calcola la proporzione e aggiorna il ticket
-		        if (affectedVersions.isEmpty()) {
+		        if (av.isEmpty()) {
 		            setNewAV(ticket);
-		            calculateProportion(ticketList);
+		            proportion(list);
 		        }
 		        
 		        // Controlla la versione colpita e aggiorna la lista dei risultati
-		        for (String version : affectedVersions) {
-		            int id = getReleaseId(release, version);
+		        for (String version : av) {
+		            int id = releaseNumber(release, version);
 		            if (id < release.size() / 2) {
-		                checkVersion(fileList, maps, false, id);
+		                markFilesInReleaseAsBuggy(fileList, maps, false, id);
 		            }
 		        }
 		        
 		        // Controlla la versione di fix e aggiorna la lista dei risultati
-		        if (!fixVersions.isEmpty()) {
-		            String fixVersion = fixVersions.get(0);
-		            int id = getReleaseId(release, fixVersion);
+		        if (!fv.isEmpty()) {
+		            String fixVersion = fv.get(0);
+		            int id = releaseNumber(release, fixVersion);
 		            if (id < release.size() / 2) {
-		                checkVersion(fileList, maps, true, id);
+		                markFilesInReleaseAsBuggy(fileList, maps, true, id);
 		            }
 		        }
 		    }
@@ -306,22 +303,22 @@ public class Dataset {
 		
 		//check if a file is buggy or not
 
-		private static void checkVersion(List<FileCommitted> fileList, List<HashMap<String, Result>> maps, boolean updateFix, int releaseId) {
-		    Result r = null;
+		private static void markFilesInReleaseAsBuggy(List<FileCommitted> fileList, List<HashMap<String, Result>> releaseMaps, boolean updateFixes, int releaseId) {
+		    // Get the map of results for the given release
+		    HashMap<String, Result> releaseResults = releaseMaps.get(releaseId);
 
-		    //Iterate over each committed file and check if it is in the given release
-		    for(FileCommitted file : fileList) {
-		        r = maps.get(releaseId).get(file.getFilename());
-
-		        if(r != null) {
-		            //The file is in the release, set it as buggy and update the number of fixes if necessary
-		            r.setBuggy("Si");
-		            if(updateFix) {
-		                r.addFix();
+		    // Iterate over each committed file and mark it as buggy if it is in the given release
+		    for (FileCommitted file : fileList) {
+		        Result result = releaseResults.get(file.getFilename());
+		        if (result != null) {
+		            result.setBuggy("Si");
+		            if (updateFixes) {
+		                result.addFix();
 		            }
 		        }
 		    }
 		}
+
 
 		
 		//check the file and, if it's not new update info, else create the new result
@@ -356,7 +353,7 @@ public class Dataset {
 		
 		//Write the dataset
 
-		public static void writeDataset(String projectName, List<Result> resultList) throws FileNotFoundException {
+		public static void getDs(String projectName, List<Result> resultList) throws FileNotFoundException {
 		    String filename = projectName + "DatasetInfo.csv";
 		    try (PrintStream printer = new PrintStream(new File(filename))) {
 		        printer.println("Release; File; Size; LocTouched; LocAdded; MaxLocAdded; AvgLocAdded; Nauth; Nfix; Nr; ChgSetSize; Buggy");
