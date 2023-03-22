@@ -93,7 +93,7 @@ public class Dataset {
 		    return !ticket.getFixVersions().isEmpty() && !ticket.getCommitsTicket().isEmpty();
 		}
 
-		public static List<Ticket> checkFixVersionTickets(List<Ticket> tickets, List<Release> release) {
+		public static List<Ticket> checkFixVersionTickets(List<Ticket> tickets) {
 		    List<String> fixVersion;
 		    List<String> affectedVersion;
 
