@@ -130,7 +130,7 @@ public class ValidationHandler
 	        Classifier c =generateClassifier(classifier);
 
 	        if (!balancing.equals("NO")) {
-	            c = balancing(c, balancing, train, test.size() + train.size());
+	            c = balancing(c, balancing, train);
 	        }
 
 	        Evaluation eval = costSensitiveness(costEvaluation, c, train, test);
@@ -221,7 +221,7 @@ public class ValidationHandler
 	    return fc;
 	}
 
-	private static FilteredClassifier balancing(Classifier c, String balancing, Instances train, int dim) throws Exception {
+	private static FilteredClassifier balancing(Classifier c, String balancing, Instances train) throws Exception {
 	    Filter filter = getBalancingFilter(balancing, train);
 	    return createFilteredClassifier(c, filter);
 	}
