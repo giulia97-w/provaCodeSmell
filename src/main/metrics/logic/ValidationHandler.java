@@ -85,10 +85,6 @@ public class ValidationHandler
 	}
 
 
-	
-	
-	
-
 	private static void evaluateAndAddMeasure(Evaluation eval, Instances train, Instances test, String[] s, String projName, List<Measure> measures, int version) {
 	    Measure m = createMeasure(train, test, s, projName, version);
 
@@ -111,47 +107,34 @@ public class ValidationHandler
 	    return filter;
 	}
 	
-	public void walkForward(String featureSelection, String balancing, String costEvaluation, String classifier, List<Instances> sets, List<Measure> m, String projName) throws Exception {
+	public void walkForward(String featureSelection, String balancing, String costEvaluation, String classifier, List<Instances> sets, List<Measure> measures, String projectName) throws Exception {
 	    int version = 0;
-
 	    for (int i = 1; i < sets.size(); i++) {
-	        Instances test = new Instances(sets.get(i));
-	        Instances train = createTrainingSet(sets, i);
-
-	        train.setClassIndex(train.numAttributes() - 1);
-	        test.setClassIndex(test.numAttributes() - 1);
-
-	        if (featureSelection.equals("BEST FIRST")) {
-	            List<Instances> filteredSets = featureSelection(train, test);
-	            train = filteredSets.get(1);
-	            test = filteredSets.get(0);
+	        Instances testSet = new Instances(sets.get(i));
+	        Instances trainingSet = createTrainingSet(sets, i);
+	        trainingSet.setClassIndex(trainingSet.numAttributes() - 1);
+	        testSet.setClassIndex(testSet.numAttributes() - 1);
+	        if ("BEST FIRST".equals(featureSelection)) {
+	            List<Instances> filteredSets = featureSelection(trainingSet, testSet);
+	            trainingSet = filteredSets.get(1);
+	            testSet = filteredSets.get(0);
 	        }
-
-	        Classifier c =generateClassifier(classifier);
-
-	        if (!balancing.equals("NO")) {
-	            c = balancing(c, balancing, train);
+	        Classifier classifierInstance = generateClassifier(classifier);
+	        if (!"NO".equals(balancing)) {
+	            classifierInstance = balancing(classifierInstance, balancing, trainingSet);
 	        }
-
-	        Evaluation eval = costSensitiveness(costEvaluation, c, train, test);
-
-	        String[] s = {classifier, balancing, featureSelection, costEvaluation};
-
-	        if (eval == null) {
-	            try {
-	                eval = new Evaluation(test);
-	            } catch (Exception e) {
-	                logger.log(Level.INFO, "An error has occurred evaluating a model.");
-	            }
-	        }
-
-	        if (eval != null) {
-	            createMeasure(train, test, s, projName, version);
-	            evaluateAndAddMeasure(eval, train, test, s, projName, m, version);
+	        Evaluation evaluation = evaluateModel(costEvaluation, classifierInstance, trainingSet, testSet);
+	        String[] labels = {classifier, balancing, featureSelection, costEvaluation};
+	        if (evaluation == null) {
+	            logger.log(Level.INFO, "An error occurred while evaluating a model.");
+	        } else {
+	            createMeasure(trainingSet, testSet, labels, projectName, version);
+	            evaluateAndAddMeasure(evaluation, trainingSet, testSet, labels, projectName, measures, version);
 	            version++;
 	        }
 	    }
 	}
+
 
 	private Instances createTrainingSet(List<Instances> sets, int endIndex) {
 	    Instances train = new Instances(sets.get(0));
@@ -183,35 +166,33 @@ public class ValidationHandler
 	
 	private static Filter getBalancingFilter(String balancing, Instances train) throws Exception {
 	    Filter filter = null;
-	    switch (balancing) {
-	        case "OVERSAMPLING":
-	            Resample resample = new Resample();
-	            resample.setNoReplacement(false);
-	            resample.setBiasToUniformClass(0.1);
-	            double sizePerc = 2 * (getSampleSizePerc(train));
-	            resample.setSampleSizePercent(sizePerc);
-	            String[] overOpts = new String[]{"-B", "1.0", "-Z", "130.3"};
-	            resample.setOptions(overOpts);
-	            filter = resample;
-	            break;
-	        case "UNDERSAMPLING":
-	            SpreadSubsample spreadSubsample = new SpreadSubsample();
-	            String[] opts = new String[]{"-M", "1.0"};
-	            spreadSubsample.setOptions(opts);
-	            filter = spreadSubsample;
-	            break;
-	        case "SMOTE":
-	            SMOTE smote = new SMOTE();
-	            filter = smote;
-	            break;
-	        default:
-	            break;
+
+	    if ("OVERSAMPLING".equals(balancing)) {
+	        Resample resample = new Resample();
+	        resample.setNoReplacement(false);
+	        resample.setBiasToUniformClass(0.1);
+	        double sizePerc = 2 * (getSampleSizePerc(train));
+	        resample.setSampleSizePercent(sizePerc);
+	        String[] overOpts = new String[]{"-B", "1.0", "-Z", "130.3"};
+	        resample.setOptions(overOpts);
+	        filter = resample;
+	    } else if ("UNDERSAMPLING".equals(balancing)) {
+	        SpreadSubsample spreadSubsample = new SpreadSubsample();
+	        String[] opts = new String[]{"-M", "1.0"};
+	        spreadSubsample.setOptions(opts);
+	        filter = spreadSubsample;
+	    } else if ("SMOTE".equals(balancing)) {
+	        SMOTE smote = new SMOTE();
+	        filter = smote;
 	    }
+
 	    if (filter != null) {
 	        filter.setInputFormat(train);
 	    }
+
 	    return filter;
 	}
+
 	private static FilteredClassifier createFilteredClassifier(Classifier c, Filter filter) {
 	    FilteredClassifier fc = new FilteredClassifier();
 	    fc.setClassifier(c);
@@ -226,48 +207,43 @@ public class ValidationHandler
 	    return createFilteredClassifier(c, filter);
 	}
 
-	private static Evaluation costSensitiveness(String costEvaluation, Classifier c, Instances train, Instances test) {
+	
+	
+	private static Evaluation evaluateModel(String costEvaluation, Classifier c, Instances train, Instances test) {
 	    Evaluation ev = null;
 	    if (!costEvaluation.equals("NO")) {
-	        ev = costSensitiveEvaluation(costEvaluation, c, train, test);
+	        CostSensitiveClassifier c1 = new CostSensitiveClassifier();
+	        if (costEvaluation.equals("SENSITIVE THRESHOLD")) {
+	            c1.setMinimizeExpectedCost(true);
+	        } else if (costEvaluation.equals("SENSITIVE LEARNING")) {
+	            c1.setMinimizeExpectedCost(false);
+	            train = reweight(train);
+	        }
+	        c1.setClassifier(c);
+	        c1.setCostMatrix(createCostMatrix());
+	        try {
+	            c1.buildClassifier(train);
+	            ev = new Evaluation(test, c1.getCostMatrix());
+	            ev.evaluateModel(c1, test);
+	        } catch (Exception e) {
+	            logger.log(Level.INFO, "An error has occurred handling classifier sensitiveness.");
+	        }
 	    } else {
-	        ev = standardEvaluation(c, train, test);
+	        try {
+	            c.buildClassifier(train);
+	            ev = new Evaluation(test);
+	            ev.evaluateModel(c, test);
+	        } catch (Exception e) {
+	            logger.log(Level.INFO, "An error has occurred evaluating a model.");
+	        }
 	    }
 	    return ev;
 	}
 
-	private static Evaluation costSensitiveEvaluation(String costEvaluation, Classifier c, Instances train, Instances test) {
-	    Evaluation ev = null;
-	    CostSensitiveClassifier c1 = new CostSensitiveClassifier();
-	    if (costEvaluation.equals("SENSITIVE THRESHOLD")) {
-	        c1.setMinimizeExpectedCost(true);
-	    } else if (costEvaluation.equals("SENSITIVE LEARNING")) {
-	        c1.setMinimizeExpectedCost(false);
-	        train = reweight(train);
-	    }
-	    c1.setClassifier(c);
-	    c1.setCostMatrix(createCostMatrix());
-	    try {
-	        c1.buildClassifier(train);
-	        ev = new Evaluation(test, c1.getCostMatrix());
-	        ev.evaluateModel(c1, test);
-	    } catch (Exception e) {
-	        logger.log(Level.INFO, "An error has occurred handling classifier sensitiveness.");
-	    }
-	    return ev;
-	}
 
-	private static Evaluation standardEvaluation(Classifier c, Instances train, Instances test) {
-	    Evaluation ev = null;
-	    try {
-	        c.buildClassifier(train);
-	        ev = new Evaluation(test);
-	        ev.evaluateModel(c, test);
-	    } catch (Exception e) {
-	        logger.log(Level.INFO, "An error has occurred evaluating a model.");
-	    }
-	    return ev;
-	}
+	
+
+
 
 	private static double getSampleSizePerc(Instances train) {
 	    double buggyPercentage = buggyPercentage(train);
