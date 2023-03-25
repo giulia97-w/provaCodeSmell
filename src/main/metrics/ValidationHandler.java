@@ -56,7 +56,7 @@ public class ValidationHandler
 	    return mod;
 	}
 
-	private static int calculateRelease(String projName, int version, int mod) {
+	private static int calculateRelease( int version, int mod) {
 	    return (version % mod) + 1;
 	}
 
@@ -64,27 +64,26 @@ public class ValidationHandler
 	    return buggyPercentage(instances);
 	}
 
-	private static Measure createMeasure(String classifier, String balancing, String featureSelection, String sensitivity, int release, double trainPercentage, double defectInTestPercentage, double defectInTrainPercentage, String projName) {
-	    Measure m = new Measure(projName);
-	    m.setRelease(release);
-	    m.setClassifier(classifier);
-	    m.setBalancing(balancing);
-	    m.setFeatureSelection(featureSelection);
-	    m.setSensitivity(sensitivity);
-	    m.setTrainPercentage(trainPercentage);
-	    m.setDefectInTestPercentage(defectInTestPercentage);
-	    m.setDefectInTrainPercentage(defectInTrainPercentage);
-	    return m;
-	}
-
 	public static Measure createMeasure(Instances train, Instances test, String[] s, String projName, int version) {
 	    double ratio = calculateRatio(train, test);
 	    int mod = calculateMod(projName);
-	    int release = calculateRelease(projName, version, mod);
+	    int release = calculateRelease(version, mod);
 	    double defectInTrainPercentage = calculateDefectPercentage(train);
 	    double defectInTestPercentage = calculateDefectPercentage(test);
-	    return createMeasure(s[0], s[1], s[2], s[3], release, ratio, defectInTestPercentage, defectInTrainPercentage, projName);
+
+	    Measure m = new Measure(projName);
+	    m.setRelease(release);
+	    m.setClassifier(s[0]);
+	    m.setBalancing(s[1]);
+	    m.setFeatureSelection(s[2]);
+	    m.setSensitivity(s[3]);
+	    m.setTrainPercentage(ratio);
+	    m.setDefectInTestPercentage(defectInTestPercentage);
+	    m.setDefectInTrainPercentage(defectInTrainPercentage);
+
+	    return m;
 	}
+
 
 	
 	
@@ -189,7 +188,7 @@ public class ValidationHandler
 	            Resample resample = new Resample();
 	            resample.setNoReplacement(false);
 	            resample.setBiasToUniformClass(0.1);
-	            double sizePerc = 2 * (getSampleSizePerc(train, dim));
+	            double sizePerc = 2 * (getSampleSizePerc(train));
 	            resample.setSampleSizePercent(sizePerc);
 	            String[] overOpts = new String[]{"-B", "1.0", "-Z", "130.3"};
 	            resample.setOptions(overOpts);
@@ -270,7 +269,7 @@ public class ValidationHandler
 	    return ev;
 	}
 
-	private static double getSampleSizePerc(Instances train, int dim) {
+	private static double getSampleSizePerc(Instances train) {
 	    double buggyPercentage = buggyPercentage(train);
 	    double nonBuggyPercentage = 1 - buggyPercentage;
 	    double majorityPercentage = Math.max(buggyPercentage, nonBuggyPercentage);
