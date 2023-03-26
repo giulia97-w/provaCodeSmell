@@ -35,11 +35,12 @@ public class ValidationHandler
 {
 	private static final Logger logger =  Logger.getLogger(ValidationHandler.class.getName());
 	
-	//Walk forward: ogni volta prendo incrementalmente il test set e i precedenti come train set iterando le istanze
 	public static void main(String[] args) throws Exception
 	{
 		String dataSetA = "/Users/giuliamenichini/eclipse-workspace/weka/BOOKKEEPERDatasetInfo.arff";
 		computeAccuracy(dataSetA,"BOOKKEEPER");
+		
+
 	}
 
 	//Preparo la misura e la aggiungo alle altre
@@ -87,7 +88,7 @@ public class ValidationHandler
 
 	private static void evaluateAndAddMeasure(Evaluation eval, Instances train, Instances test, String[] s, String projName, List<Measure> measures, int version) {
 	    Measure m = createMeasure(train, test, s, projName, version);
-
+	    
 	    m.setAuc(eval.areaUnderROC(1));
 	    m.setKappa(eval.kappa());
 	    m.setRecall(eval.recall(1));
@@ -138,6 +139,7 @@ public class ValidationHandler
 
 	private Instances createTrainingSet(List<Instances> sets, int endIndex) {
 	    Instances train = new Instances(sets.get(0));
+	    
 	    for (int i = 1; i < endIndex; i++) {
 	        train.addAll(sets.get(i));
 	    }
@@ -220,7 +222,7 @@ public class ValidationHandler
 	            train = reweight(train);
 	        }
 	        c1.setClassifier(c);
-	        c1.setCostMatrix(createCostMatrix());
+	        c1.setCostMatrix(createCostMatrix(10.0, 1.0));
 	        try {
 	            c1.buildClassifier(train);
 	            ev = new Evaluation(test, c1.getCostMatrix());
@@ -265,12 +267,12 @@ public class ValidationHandler
 	    return (double) numBuggyInstances / train.size();
 	}
 
-	private static CostMatrix createCostMatrix() {
-	    CostMatrix costMatrix = new CostMatrix(2); // matrice 2x2
-	    costMatrix.setCell(0, 0, 0.0); // Costo per vero positivo
-	    costMatrix.setCell(1, 0, 1.0); // Costo per falso positivo
-	    costMatrix.setCell(0, 1, 10.0); // Costo per falso negativo
-	    costMatrix.setCell(1, 1, 0.0); // Costo per vero negativo
+	private static CostMatrix createCostMatrix(double weightFalsePositive, double weightFalseNegative) {
+	    CostMatrix costMatrix = new CostMatrix(2); 
+	    costMatrix.setCell(0, 0, 0.0); 
+	    costMatrix.setCell(1, 0, weightFalsePositive); 
+	    costMatrix.setCell(0, 1, weightFalseNegative); 
+	    costMatrix.setCell(1, 1, 0.0); 
 	    return costMatrix;
 	}
 
@@ -278,34 +280,47 @@ public class ValidationHandler
 	private static Instances reweight(Instances train) {
 	    Instances train2 = new Instances(train);
 
-	    double numNo = train.numInstances() - buggyCount(train);
+	    double numNo = train.numInstances() - buggyCount1(train);
 	    double numYes = buggyCount(train);
 
 	    if (numNo > numYes) {
-	        int oversampleRatio = (int) Math.ceil(numNo / numYes);
-	        for (int i = 0; i < train.numInstances(); i++) {
-	            Instance instance = train.instance(i);
-	            if (instance.stringValue(instance.classIndex()).equals("Yes")) {
-	                for (int j = 0; j < oversampleRatio - 1; j++) {
-	                    train2.add(instance);
-	                }
-	            }
-	        }
+	        int oversampleRatio = calculateOversampleRatio(numNo, numYes);
+	        train2 = oversampleBuggyInstances(train, oversampleRatio);
 	    }
 
 	    return train2;
 	}
 
-	private static int buggyCount(Instances instances) {
+	private static int buggyCount(Instances data) {
 	    int count = 0;
-	    for (int i = 0; i < instances.numInstances(); i++) {
-	        Instance instance = instances.instance(i);
+	    for (int i = 0; i < data.numInstances(); i++) {
+	        Instance instance = data.instance(i);
 	        if (instance.stringValue(instance.classIndex()).equals("Yes")) {
 	            count++;
 	        }
 	    }
 	    return count;
 	}
+
+	private static int calculateOversampleRatio(double numNo, double numYes) {
+	    return (int) Math.ceil(numNo / numYes);
+	}
+
+	private static Instances oversampleBuggyInstances(Instances data, int oversampleRatio) {
+	    Instances oversampledData = new Instances(data);
+	    for (int i = 0; i < data.numInstances(); i++) {
+	        Instance instance = data.instance(i);
+	        if (instance.stringValue(instance.classIndex()).equals("Yes")) {
+	            for (int j = 0; j < oversampleRatio - 1; j++) {
+	                oversampledData.add(instance);
+	            }
+	        }
+	    }
+	    return oversampledData;
+	}
+
+
+	
 	
 	
 	
@@ -313,6 +328,7 @@ public class ValidationHandler
 	
 	//Metodo di controllo dell'applicativo
 	public static void computeAccuracy(String datasetPath, String projName) throws Exception {
+		logger.info("Creando il file di output");
 		ArrayList<Instances> sets = getSets(datasetPath);
 		List<String> featureSelection = Arrays.asList("NO", "BEST FIRST");
 		List<String> balancing = Arrays.asList("NO", "UNDERSAMPLING", "OVERSAMPLING", "SMOTE");
@@ -335,6 +351,7 @@ public class ValidationHandler
 		    }
 		}
 		printMeasures(projName, measures);
+		logger.info("File creato!");
 	}
 	
 	//Ottengo una lista dove ogni elemento è l'insieme delle istanze divise per versione
@@ -362,10 +379,10 @@ public class ValidationHandler
 	    return sets;
 	}
 
-
+	
 	public static void printMeasures(String project, List<Measure> measures) {
 	    String outName = project + "Output.csv";
-
+	    
 	    try (FileWriter fileWriter = new FileWriter(outName)) {
 	        fileWriter.append("Dataset,#TrainingRelease,%Training,%Defective in training,%Defective in testing,Classifier,Balancing,Feature Selection,Sensitivity,TP,FP,TN,FN,Precision,Recall,AUC,Kappa");
 	        fileWriter.append("\n");
@@ -378,6 +395,7 @@ public class ValidationHandler
 	}
 
 	private static void writeMeasure(FileWriter fileWriter, Measure measure) throws IOException {
+		
 	    fileWriter.append(measure.getDataset());
 	    fileWriter.append(",");
 	    fileWriter.append(measure.getRelease().toString());
@@ -412,6 +430,8 @@ public class ValidationHandler
 	    fileWriter.append(",");
 	    fileWriter.append(measure.getKappa().toString());
 	    fileWriter.append("\n");
+		
+
 	}
 
 		
