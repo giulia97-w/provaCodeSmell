@@ -20,7 +20,7 @@ public class Dataset {
 	
 	
 	
-	public static final String TOKEN = "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";
+	public static final String TOKEN = "";
 	public static final String PROJECT = "BOOKKEEPER";
 	
 	public static void main(String[] args) throws JSONException, IOException, ParseException {
@@ -153,9 +153,9 @@ public class Dataset {
 			.mapToInt(ticket -> ticket.getAffectedVersions().size())
 			.sum();
 			int totalTickets = tickets.size();
-			
 			return totalTickets > 0 ? (float) totalAffectedVersions / totalTickets : 0.0f;
 		}
+
 
 		//confronto tra la data del committ e la data della prima release se la data del commit è antecedente si passa all'oggetto commit successivo
 		//altrimenti viene creato un indice i che viene decrementato finché la data dell'oggetto release corrente nella lista è antecedente alla data 
@@ -194,39 +194,42 @@ public class Dataset {
 			
 		
 		private static void isBuggy(List<HashMap<String, Result>> maps) {
-		    
-		    
 		    List<Ticket> list = removeInconsistence(tickets);
-		    
 		    verifyAffectedVersions(list, release);
-		    //controllo dei commit, av e fv, se av è vuota la si setta. altrimenti per ogni versione affetta si setta come buggy.
-		    for (Ticket ticket : tickets) { {
-		        Commit com = ticket.getCommitFix();
-		        List<String> av = ticket.getAffectedVersions();
-		        List<String> fv = ticket.getFixVersions();
-		        List<FileCommitted> fileList = com.getCommitFile();
-		        
-		        if (av.isEmpty()) {
-		            setNewAV(ticket);
-		            calculateAffectedVersionProportion(list);
-		        }
-		        
-		        for (String version : av) {
-		            int id = releaseNumber(release, version);
-		            if (id < release.size() / 2) { //metà delle release
-		                markFilesInReleaseAsBuggy(fileList, maps, false, id);
-		            }
-		        }
-		        
-		        if (!fv.isEmpty()) {
-		            String fixVersion = fv.get(0);
-		            int id = releaseNumber(release, fixVersion);
-		            if (id < release.size() / 2) {
-		                markFilesInReleaseAsBuggy(fileList, maps, true, id);
-		            }
-		        }}}
-		    
+		    for (Ticket ticket : tickets) {
+		        extractCommitInfo(ticket, maps);
+		    }
 		}
+
+		private static void extractCommitInfo(Ticket ticket, List<HashMap<String, Result>> maps) {
+		    List<Ticket> list = removeInconsistence(tickets);
+
+			Commit com = ticket.getCommitFix();
+		    List<String> av = ticket.getAffectedVersions();
+		    List<String> fv = ticket.getFixVersions();
+		    List<FileCommitted> fileList = com.getCommitFile();
+
+		    if (av.isEmpty()) {
+		        setNewAV(ticket);
+		        calculateAffectedVersionProportion(list);
+		    }
+
+		    for (String version : av) {
+		        int id = releaseNumber(release, version);
+		        if (id < release.size() / 2) {
+		            markFilesInReleaseAsBuggy(fileList, maps, false, id);
+		        }
+		    }
+
+		    if (!fv.isEmpty()) {
+		        String fixVersion = fv.get(0);
+		        int id = releaseNumber(release, fixVersion);
+		        if (id < release.size() / 2) {
+		            markFilesInReleaseAsBuggy(fileList, maps, true, id);
+		        }
+		    }
+		}
+
 
 		
 		//setta i file come buggy 
