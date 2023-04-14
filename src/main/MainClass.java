@@ -401,6 +401,7 @@ public class MainClass {
 
 
     public static void main(String[] args) throws IllegalStateException, GitAPIException, IOException, JSONException {
+    	String endPath = "/.git";
     	String percorso = "/Users/giuliamenichini/";
         releasesListBookkeeper = RetrieveJira.getListRelease(PROJECT);
         releasesListOpenjpa = RetrieveJira.getListRelease(PROJECT1);
@@ -414,14 +415,14 @@ public class MainClass {
         linkFunction();
         removeReleaseBeforeHalf(releasesListBookkeeper, ticketListBookkeeper);
         checkTicketBookkeeper(); 
-        RetrieveGit.setBuilder(percorso + PROJECT.toLowerCase() + "/.git");
+        RetrieveGit.setBuilder(percorso + PROJECT.toLowerCase() + endPath);
         logger.log(Level.INFO, "Numero ticket = {0}.", ticketListBookkeeper.size());
         Collections.reverse(ticketListBookkeeper); 
         Proportion.proportion(ticketListBookkeeper);
         checkTicketBookkeeper();  
         RetrieveGit.getJavaFiles(Paths.get(percorso + PROJECT.toLowerCase()), releasesListBookkeeper);
         RetrieveGit.checkBuggyness(releasesListBookkeeper, ticketListBookkeeper); 
-        Metrics.getMetrics(releasesListBookkeeper, percorso + PROJECT.toLowerCase() + "/.git");
+        Metrics.getMetrics(releasesListBookkeeper, percorso + PROJECT.toLowerCase() + endPath);
         createCSV(releasesListBookkeeper, PROJECT.toLowerCase());
 
         
@@ -429,14 +430,14 @@ public class MainClass {
         linkFunction();
         removeReleaseBeforeHalf(releasesListOpenjpa, ticketListOpenjpa);
         checkTicketOpenjpa(); 
-        RetrieveGit.setBuilder(percorso + PROJECT1.toLowerCase() + "/.git");
+        RetrieveGit.setBuilder(percorso + PROJECT1.toLowerCase() + endPath);
         logger.log(Level.INFO, "Numero ticket = {0}.", ticketListOpenjpa.size());
         Collections.reverse(ticketListOpenjpa);
         Proportion.proportion(ticketListOpenjpa);
         checkTicketOpenjpa(); 
         RetrieveGit.getJavaFiles(Paths.get(percorso + PROJECT1.toLowerCase()), releasesListOpenjpa);
         RetrieveGit.checkBuggyness(releasesListOpenjpa, ticketListOpenjpa); 
-        Metrics.getMetrics(releasesListOpenjpa, percorso + PROJECT1.toLowerCase() + "/.git");
+        Metrics.getMetrics(releasesListOpenjpa, percorso + PROJECT1.toLowerCase() + endPath);
         createCSV(releasesListOpenjpa, PROJECT1.toLowerCase());
 
     }
