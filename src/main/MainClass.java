@@ -514,7 +514,7 @@ public class MainClass {
         }
         return numTouchedClass;
     }
-    public static void processDiffEntry(DiffEntry diffEntry, String type, String authName, List<JavaFile> fileList, int numTouchedClass, DiffFormatter diff) {
+    public static void processDiffEntry(DiffEntry diffEntry, String type, String authName, List<JavaFile> fileList, DiffFormatter diff) {
         if (diffEntry.toString().contains(ENDFILE) && type.equals("MODIFY") || type.equals(DELETE) || type.equals("ADD") || type.equals("RENAME")) {
             String fileName;
             if (type.equals(DELETE) || type.equals("RENAME")) fileName = diffEntry.getOldPath();
@@ -526,7 +526,7 @@ public class MainClass {
         int numTouchedClass = countTouchedClasses(diffs);
         for (DiffEntry diffEntry : diffs) {
             String type = diffEntry.getChangeType().toString();
-            processDiffEntry(diffEntry, type, authName, fileList, numTouchedClass, diff);
+            processDiffEntry(diffEntry, type, authName, fileList,  diff);
         }
     }
 
