@@ -543,14 +543,14 @@ public class MainClass {
             logger.log(Level.SEVERE, "Error in CalculateMetrics");
         }
         int churn = calculateChurn(locAdded, locDeleted);
-        fileList(fileList, fileName, authName, numTouchedClass, locAdded, churn);
+        fileList(fileList, fileName, authName,  locAdded, churn);
     }
 
     private static int calculateChurn(int locAdded, int locDeleted) {
         return locAdded - locDeleted;
     }
 
-    private static void fileList(List<JavaFile> fileList, String fileName, String authName, int numTouchedClass, int locAdded, int churn) {
+    private static void fileList(List<JavaFile> fileList, String fileName, String authName, int locAdded, int churn) {
         JavaFile file = findFile(fileList, fileName);
         if (file != null) {
             existingFile(file, authName, locAdded, churn);
