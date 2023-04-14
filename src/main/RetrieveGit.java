@@ -24,6 +24,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -113,10 +114,8 @@ public class RetrieveGit {
     private static void addJavaFile(TreeWalk treeWalk, Release release, List<String> fileNameList) throws IOException {
         // Ottieni il nome del file
         String filename = treeWalk.getPathString();
-        // Se il file ha estensione .java
-        if (filename.endsWith(".java")) {
-            // Se il file non è già stato aggiunto alla release
-            if (!fileNameList.contains(filename)) {
+        // Se il file ha estensione .java e non è già stato aggiunto alla release
+        if (filename.endsWith(".java") && !fileNameList.contains(filename)) {
                 // Crea una nuova istanza di JavaFile con il nome del file
                 JavaFile file = new JavaFile(filename);
                 // Imposta gli attributi di default per il nuovo file
@@ -125,9 +124,9 @@ public class RetrieveGit {
                 release.getFile().add(file);
                 // Aggiungi il nome del file alla lista dei file
                 fileNameList.add(filename);
-            }
         }
-    }
+}
+
 
     private static void setDefaultJavaFileAttributes(TreeWalk treeWalk, JavaFile file) throws IOException {
         // Imposta gli attributi di default per un nuovo file Java
@@ -157,15 +156,16 @@ public class RetrieveGit {
         List<Integer> av = ticket.getAV();
         ticket.getCommitList().stream()
             .map(commit -> {
-				try {
-					return getDiffs(commit);
-				} catch (IOException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
-				return null;
-			})
-            .filter(diffs -> diffs != null)
+                try {
+                    return getDiffs(commit);
+                } catch (IOException e) {
+                    // TODO Auto-generated catch block
+                    e.printStackTrace();
+                }
+                return null;
+            })
+            .filter(Objects::nonNull)
+
             .forEach(diffs -> diff(diffs, releaseList, av));
     }
 
