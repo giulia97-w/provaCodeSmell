@@ -343,37 +343,21 @@ public class MainClass {
 
 
     public static void main(String[] args) throws IllegalStateException, GitAPIException, IOException, JSONException {
-
-
-        // in releases List metto tutte le release del progetto
+    	String percorso = "/Users/giuliamenichini/";
         releasesList = RetrieveJira.getListRelease(NAMEPROJECT);
-
-        // in commit List metto tutti i commit del progetto
         commitList = RetrieveGit.getAllCommit(releasesList, Paths.get("/Users/giuliamenichini/" + NAMEPROJECT.toLowerCase()));
-
-        //prendo tutti i ticket da Jira in accordo alle specifiche
         ticketList = RetrieveJira.getTickets(releasesList, NAMEPROJECT);
-
-
-        logger.log(Level.INFO, "Eseguo il linkage Tickets - Commits");
         linkFunction();
         removeReleaseBeforeHalf(releasesList, ticketList);
-
-
         checkTicket();
-        RetrieveGit.setBuilder("/Users/giuliamenichini/" + NAMEPROJECT.toLowerCase() + "/.git");
+        RetrieveGit.setBuilder(percorso + NAMEPROJECT.toLowerCase() + "/.git");
         logger.log(Level.INFO, "Numero ticket = {0}.", ticketList.size());
-
-        Collections.reverse(ticketList); //reverse perchè è moving window
+        Collections.reverse(ticketList); 
         Proportion.proportion(ticketList);
-
-        checkTicket();   //devo rifarlo perchè, avendo settato nuovi IV, voglio togliere possibili incongruenze!
-
-        RetrieveGit.getJavaFiles(Paths.get("/Users/giuliamenichini/" + NAMEPROJECT.toLowerCase()), releasesList);
-
-        RetrieveGit.checkBuggyness(releasesList, ticketList); //inizialmente buggyness = NO per ogni release
-
-        Metrics.getMetrics(releasesList, "/Users/giuliamenichini/" + NAMEPROJECT.toLowerCase() + "/.git");
+        checkTicket();  
+        RetrieveGit.getJavaFiles(Paths.get(percorso + NAMEPROJECT.toLowerCase()), releasesList);
+        RetrieveGit.checkBuggyness(releasesList, ticketList); 
+        Metrics.getMetrics(releasesList, percorso + NAMEPROJECT.toLowerCase() + "/.git");
         createCSV(releasesList, NAMEPROJECT.toLowerCase());
 
     }
