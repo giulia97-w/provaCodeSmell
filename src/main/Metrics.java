@@ -66,7 +66,7 @@ public class Metrics {
                     e.printStackTrace();
                 }
             });
-            MetricsOfFilesByRelease(filesJavaListPerRelease, release);
+            metricsOfFilesByRelease(filesJavaListPerRelease, release);
         });
     }
 
@@ -111,7 +111,7 @@ public class Metrics {
             logger.log(Level.SEVERE, "Error in CalculateMetrics");
         }
         int churn = calculateChurn(locAdded, locDeleted);
-        FileList(fileList, fileName, authName, numTouchedClass, locAdded, churn);
+        fileList(fileList, fileName, authName, numTouchedClass, locAdded, churn);
     }
 
     private static int calculateChurn(int locAdded, int locDeleted) {
@@ -121,7 +121,7 @@ public class Metrics {
     private static void fileList(List<JavaFile> fileList, String fileName, String authName, int numTouchedClass, int locAdded, int churn) {
         JavaFile file = findFile(fileList, fileName);
         if (file != null) {
-            ExistingFile(file, authName, numTouchedClass, locAdded, churn);
+            existingFile(file, authName, numTouchedClass, locAdded, churn);
         } else {
             addNewFile(fileList, fileName, authName, numTouchedClass, locAdded, churn);
         }
