@@ -519,7 +519,7 @@ public class MainClass {
             String fileName;
             if (type.equals(DELETE) || type.equals("RENAME")) fileName = diffEntry.getOldPath();
             else fileName = diffEntry.getNewPath();
-            calculateMetrics(fileList, fileName, authName, numTouchedClass, diffEntry, diff);
+            calculateMetrics(fileList, fileName, authName,diffEntry, diff);
         }
     }
     public static void analyzeDiffEntryMetrics(List<DiffEntry> diffs, List<JavaFile> fileList, String authName, DiffFormatter diff) {
@@ -531,7 +531,7 @@ public class MainClass {
     }
 
 
-    public static void calculateMetrics(List<JavaFile> fileList, String fileName, String authName, int numTouchedClass, DiffEntry diffEntry, DiffFormatter diff) {
+    public static void calculateMetrics(List<JavaFile> fileList, String fileName, String authName, DiffEntry diffEntry, DiffFormatter diff) {
         int locAdded = 0;
         int locDeleted = 0;
         try {
