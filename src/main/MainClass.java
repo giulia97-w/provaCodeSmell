@@ -555,7 +555,7 @@ public class MainClass {
         if (file != null) {
             existingFile(file, authName, locAdded, churn);
         } else {
-            addNewFile(fileList, fileName, authName, numTouchedClass, locAdded, churn);
+            addNewFile(fileList, fileName, authName, locAdded, churn);
         }
     }
 
@@ -580,7 +580,7 @@ public class MainClass {
         addToChurnList(file, churn);
     }
 
-    private static void addNewFile(List<JavaFile> fileList, String fileName, String authName, int numTouchedClass, int locAdded, int churn) {
+    private static void addNewFile(List<JavaFile> fileList, String fileName, String authName,  int locAdded, int churn) {
         JavaFile javaFile = new JavaFile(fileName);
         applyMetricsNewFile(javaFile,  locAdded, churn, fileList, authName);
     }
@@ -767,7 +767,7 @@ public class MainClass {
             // Ottieni il nome del file
             String filename = treeWalk.getPathString();
             // Se il file ha estensione .java e non è già stato aggiunto alla release
-            if (filename.endsWith(".java") && !fileNameList.contains(filename)) {
+            if (filename.endsWith(ENDFILE) && !fileNameList.contains(filename)) {
                     // Crea una nuova istanza di JavaFile con il nome del file
                     JavaFile file = new JavaFile(filename);
                     // Imposta gli attributi di default per il nuovo file
