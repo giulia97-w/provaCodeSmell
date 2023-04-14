@@ -21,7 +21,60 @@ import java.util.stream.Collectors;
 
 
 public class MainClass {
+	
+	private static void update(FileWriter fileWriter, Release release, JavaFile file) throws IOException {
+        fileWriter.append(release.getIndex().toString());
+        fileWriter.append(",");
+        fileWriter.append(file.getName()); 
+        fileWriter.append(",");
+        fileWriter.append(file.getLOC().toString()); 
+        fileWriter.append(",");
+        fileWriter.append(file.getLOCadded().toString()); 
+        fileWriter.append(",");
+        writeMaxAndAvgLOCAdded(fileWriter, file); 
+        fileWriter.append(",");
+        fileWriter.append(file.getChurn().toString());
+        fileWriter.append(",");
+        writeMaxAndAvgChurn(fileWriter, file); 
+        fileWriter.append(",");
+        fileWriter.append(file.getNr().toString());
+        fileWriter.append(",");
+        fileWriter.append(String.valueOf(file.getNAuth().size()));
+        fileWriter.append(",");
+        fileWriter.append(file.getBugg());
+        fileWriter.append("\n");
+        fileWriter.flush();
+    }
 
+    private static void writeMaxAndAvgLOCAdded(FileWriter fileWriter, JavaFile file) throws IOException {
+        if (file.getLOCadded().equals(0)) { //se non ho aggiunto nulla niente max e avg
+            fileWriter.append("0");
+            fileWriter.append(",");
+            fileWriter.append("0");
+        } else {
+            int maxLocAdded = Collections.max((file.getLocAddedList())); //prendo il max dalla lista
+            fileWriter.append(String.valueOf(maxLocAdded)); //scrivo tale massimo
+            fileWriter.append(",");
+            int avgLocAdded = (int)file.getLocAddedList().stream().mapToInt(Integer::intValue).average().orElse(0.0); //easy way to avg
+            fileWriter.append(String.valueOf(avgLocAdded));
+        }
+    }
+
+    private static void writeMaxAndAvgChurn(FileWriter fileWriter, JavaFile file) throws IOException {
+        if (file.getChurn().equals(0)) {
+            fileWriter.append("0");
+            fileWriter.append(",");
+            fileWriter.append("0");
+        } else {
+            int maxChurn = Collections.max((file.getChurnList()));
+            fileWriter.append(String.valueOf(maxChurn));
+            fileWriter.append(",");
+            int avgChurn = (int) file.getChurnList().stream().mapToInt(Integer::intValue).average().orElse(0.0); //easy way
+            fileWriter.append(String.valueOf(avgChurn));
+        }
+    }
+
+    
 
     private static void linkFunction() {
     	linkage();
@@ -29,6 +82,12 @@ public class MainClass {
         removeUnlinkedTickets();
     }
 
+    private static LocalDateTime getCommitDate(RevCommit commit) {
+        return commit.getAuthorIdent().getWhen().toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime();
+    }
+    private static void addCommitToTicket(Ticket ticket, RevCommit commit) {
+        ticket.getCommitList().add(commit);
+    }
     private static ArrayList<LocalDateTime> findCommitDatesForTicket(Ticket ticket, List<RevCommit> commitList) {
         ArrayList<LocalDateTime> commitDateList = new ArrayList<>();
         String ticketID = ticket.getID();
@@ -37,13 +96,16 @@ public class MainClass {
             String message = commit.getFullMessage();
 
             if (foundCom(message, ticketID)) {
-                LocalDateTime commitDate = commit.getAuthorIdent().getWhen().toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime();
+                LocalDateTime commitDate = getCommitDate(commit);
                 commitDateList.add(commitDate);
-                ticket.getCommitList().add(commit);
+                addCommitToTicket(ticket, commit);
             }
         }
+
         return commitDateList;
     }
+
+
     private static void updateTicketCommitDates() {
         for (Ticket ticket : ticketList) {
             ArrayList<LocalDateTime> commitDateList = findCommitDatesForTicket(ticket, commitList);
@@ -144,9 +206,6 @@ public class MainClass {
             }
         }
     }
-
-
-
 
     public static void checkTicket() {
         for (Ticket ticket : ticketList) {
@@ -251,13 +310,13 @@ public class MainClass {
         return injectedVersion >= 1 && injectedVersion <= ticket.getOV() && injectedVersion <= ticket.getFV();
     }
 
-public static void createCSV(List<Release> releases, String projectName) {
+    public static void createCSV(List<Release> releases, String projectName) {
 
     	
 
     	try (FileWriter fileWriter = new FileWriter(projectName.toLowerCase() + "Dataset.csv")) {
     	    // Creazione del file CSV e scrittura dell'intestazione.
-    	    fileWriter.append("RELEASE,FILENAME,SIZE,LOC_added,MAX_LOC_Added,AVG_LOC_Added,CHURN,MAX_Churn,AVG_Churn,NR,NAUTH,CHGSETSIZE,MAX_ChgSet,AVG_ChgSet,BUGGYNESS\n");
+    	    fileWriter.append("RELEASE,FILENAME,SIZE,LOC_added,MAX_LOC_Added,AVG_LOC_Added,CHURN,MAX_Churn,AVG_Churn,NR,NAUTH,BUGGYNESS\n");
 
     	    // Scrittura dei dati relativi a ciascun file per ogni release.
     	    for (Release release : releases) {
@@ -273,79 +332,7 @@ public static void createCSV(List<Release> releases, String projectName) {
     		}
     	}
 
-    
-  
-
-    private static void update(FileWriter fileWriter, Release release, JavaFile file) throws IOException {
-        fileWriter.append(release.getIndex().toString());
-        fileWriter.append(",");
-        fileWriter.append(file.getName()); //nome del file
-        fileWriter.append(",");
-        fileWriter.append(file.getLOC().toString()); //LOC
-        fileWriter.append(",");
-        fileWriter.append(file.getLOCadded().toString()); //LOC_added
-        fileWriter.append(",");
-        writeMaxAndAvgLOCAdded(fileWriter, file); //max e avg LOC_added
-        fileWriter.append(",");
-        fileWriter.append(file.getChurn().toString());
-        fileWriter.append(",");
-        writeMaxAndAvgChurn(fileWriter, file); //max e avg Churn
-        fileWriter.append(",");
-        fileWriter.append(file.getNr().toString());
-        fileWriter.append(",");
-        fileWriter.append(String.valueOf(file.getNAuth().size()));
-        fileWriter.append(",");
-        fileWriter.append(file.getChgSetSize().toString());
-        fileWriter.append(",");
-        writeMaxAndAvgChgSetSize(fileWriter, file); //max e avg ChgSetSize
-        fileWriter.append(",");
-        fileWriter.append(file.getBugg());
-        fileWriter.append("\n");
-        fileWriter.flush();
-    }
-
-    private static void writeMaxAndAvgLOCAdded(FileWriter fileWriter, JavaFile file) throws IOException {
-        if (file.getLOCadded().equals(0)) { //se non ho aggiunto nulla niente max e avg
-            fileWriter.append("0");
-            fileWriter.append(",");
-            fileWriter.append("0");
-        } else {
-            int maxLocAdded = Collections.max((file.getLocAddedList())); //prendo il max dalla lista
-            fileWriter.append(String.valueOf(maxLocAdded)); //scrivo tale massimo
-            fileWriter.append(",");
-            int avgLocAdded = (int)file.getLocAddedList().stream().mapToInt(Integer::intValue).average().orElse(0.0); //easy way to avg
-            fileWriter.append(String.valueOf(avgLocAdded));
-        }
-    }
-
-    private static void writeMaxAndAvgChurn(FileWriter fileWriter, JavaFile file) throws IOException {
-        if (file.getChurn().equals(0)) {
-            fileWriter.append("0");
-            fileWriter.append(",");
-            fileWriter.append("0");
-        } else {
-            int maxChurn = Collections.max((file.getChurnList()));
-            fileWriter.append(String.valueOf(maxChurn));
-            fileWriter.append(",");
-            int avgChurn = (int) file.getChurnList().stream().mapToInt(Integer::intValue).average().orElse(0.0); //easy way
-            fileWriter.append(String.valueOf(avgChurn));
-        }
-    }
-
-    private static void writeMaxAndAvgChgSetSize(FileWriter fileWriter, JavaFile file) throws IOException {
-        if (file.getChgSetSize().equals(0)) {
-            fileWriter.append("0");
-            fileWriter.append(",");
-            fileWriter.append("0");
-        } else {
-            int maxChgSet = Collections.max((file.getChgSetSizeList()));
-            fileWriter.append(String.valueOf(maxChgSet));
-            fileWriter.append(",");
-            int avgChgSet = (int) file.getChgSetSizeList().stream().mapToInt(Integer::intValue).average().orElse(0.0); //da calcolare
-            fileWriter.append(String.valueOf(avgChgSet));
-        }
-    }
-    
+   
     private static final Logger logger = Logger.getLogger(MainClass.class.getName());
 
 
@@ -357,14 +344,12 @@ public static void createCSV(List<Release> releases, String projectName) {
 
     public static void main(String[] args) throws IllegalStateException, GitAPIException, IOException, JSONException {
 
-        String repo = "/Users/giuliamenichini/" + NAMEPROJECT.toLowerCase() + "/.git";
-        Path repoPath = Paths.get("/Users/giuliamenichini/" + NAMEPROJECT.toLowerCase());
 
         // in releases List metto tutte le release del progetto
         releasesList = RetrieveJira.getListRelease(NAMEPROJECT);
 
         // in commit List metto tutti i commit del progetto
-        commitList = RetrieveGit.getAllCommit(releasesList, repoPath);
+        commitList = RetrieveGit.getAllCommit(releasesList, Paths.get("/Users/giuliamenichini/" + NAMEPROJECT.toLowerCase()));
 
         //prendo tutti i ticket da Jira in accordo alle specifiche
         ticketList = RetrieveJira.getTickets(releasesList, NAMEPROJECT);
@@ -376,7 +361,7 @@ public static void createCSV(List<Release> releases, String projectName) {
 
 
         checkTicket();
-        RetrieveGit.setBuilder(repo);
+        RetrieveGit.setBuilder("/Users/giuliamenichini/" + NAMEPROJECT.toLowerCase() + "/.git");
         logger.log(Level.INFO, "Numero ticket = {0}.", ticketList.size());
 
         Collections.reverse(ticketList); //reverse perchè è moving window
@@ -384,11 +369,11 @@ public static void createCSV(List<Release> releases, String projectName) {
 
         checkTicket();   //devo rifarlo perchè, avendo settato nuovi IV, voglio togliere possibili incongruenze!
 
-        RetrieveGit.getJavaFiles(repoPath, releasesList);
+        RetrieveGit.getJavaFiles(Paths.get("/Users/giuliamenichini/" + NAMEPROJECT.toLowerCase()), releasesList);
 
         RetrieveGit.checkBuggyness(releasesList, ticketList); //inizialmente buggyness = NO per ogni release
 
-        Metrics.getMetrics(releasesList, repo);
+        Metrics.getMetrics(releasesList, "/Users/giuliamenichini/" + NAMEPROJECT.toLowerCase() + "/.git");
         createCSV(releasesList, NAMEPROJECT.toLowerCase());
 
     }
