@@ -401,7 +401,9 @@ public class MainClass {
 
 
     public static void main(String[] args) throws IllegalStateException, GitAPIException, IOException, JSONException {
-    	String endPath = "/.git";
+    	
+    	String nameGit = "git";
+    	String endPath = "/." + nameGit ;
     	
     	String name = "giuliamenichini";
     	String percorso = "/Users/" + name + "/";
