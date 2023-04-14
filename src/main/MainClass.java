@@ -499,7 +499,7 @@ public class MainClass {
     public static int countTouchedClasses(List<DiffEntry> diffs) {
         int numTouchedClass = 0;
         for (DiffEntry diffEntry : diffs) {
-            if (diffEntry.toString().contains(FILE_EXTENSION)) {
+            if (diffEntry.toString().contains(".java")) {
                 numTouchedClass++;
             }
         }
