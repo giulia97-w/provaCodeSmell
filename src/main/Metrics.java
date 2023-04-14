@@ -118,7 +118,7 @@ public class Metrics {
         return locAdded - locDeleted;
     }
 
-    private static void FileList(List<JavaFile> fileList, String fileName, String authName, int numTouchedClass, int locAdded, int churn) {
+    private static void fileList(List<JavaFile> fileList, String fileName, String authName, int numTouchedClass, int locAdded, int churn) {
         JavaFile file = findFile(fileList, fileName);
         if (file != null) {
             ExistingFile(file, authName, numTouchedClass, locAdded, churn);
@@ -136,7 +136,7 @@ public class Metrics {
         return null;
     }
 
-    private static void ExistingFile(JavaFile file, String authName, int numTouchedClass, int locAdded, int churn) {
+    private static void existingFile(JavaFile file, String authName, int numTouchedClass, int locAdded, int churn) {
         file.setNr(file.getNr() + 1);
         if (!file.getNAuth().contains(authName)) {
             file.getNAuth().add(authName);
@@ -201,7 +201,7 @@ public class Metrics {
 
 
 
-    public static void MetricsOfFilesByRelease(List<JavaFile> fileList, Release release) {
+    public static void metricsOfFilesByRelease(List<JavaFile> fileList, Release release) {
         for (JavaFile javaFile : fileList) {
             for (JavaFile fileInRelease : release.getFile()) {
                 if (javaFile.getName().equals(fileInRelease.getName())) {
