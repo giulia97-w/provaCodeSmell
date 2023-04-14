@@ -155,7 +155,7 @@ public class MainClass {
         }
     }
 
-    public static void AffectedVersion(int release, List<Ticket> ticket) {
+    public static void affectedVersion(int release, List<Ticket> ticket) {
         removeTickets(release, ticket);
         setAVTickets(release);
     }
