@@ -22,77 +22,40 @@ import java.util.stream.Collectors;
 
 public class MainClass {
 
-    private static final Logger logger = Logger.getLogger(MainClass.class.getName());
 
-
-    private static List<Release> releasesList;
-    private static List<Ticket> ticketList;
-    private static List<RevCommit> commitList;
-    public static final String NAMEPROJECT = "BOOKKEEPER"; // OR 'AVRO'
-
-
-    public static void main(String[] args) throws IllegalStateException, GitAPIException, IOException, JSONException {
-
-        String repo = "/Users/giuliamenichini/" + NAMEPROJECT.toLowerCase() + "/.git";
-        Path repoPath = Paths.get("/Users/giuliamenichini/" + NAMEPROJECT.toLowerCase());
-
-        // in releases List metto tutte le release del progetto
-        releasesList = RetrieveJira.getListRelease(NAMEPROJECT);
-
-        // in commit List metto tutti i commit del progetto
-        commitList = RetrieveGit.getAllCommit(releasesList, repoPath);
-
-        //prendo tutti i ticket da Jira in accordo alle specifiche
-        ticketList = RetrieveJira.getTickets(releasesList, NAMEPROJECT);
-
-
-        logger.log(Level.INFO, "Eseguo il linkage Tickets - Commits");
-        linkTicketCommits();
-        removeReleaseBeforeHalf(releasesList, ticketList);
-
-
-        cleanTicketInconsistencies();
-        RetrieveGit.setBuilder(repo);
-        logger.log(Level.INFO, "Numero ticket = {0}.", ticketList.size());
-
-        Collections.reverse(ticketList); //reverse perchè è moving window
-        Proportion.proportion(ticketList);
-
-        cleanTicketInconsistencies();   //devo rifarlo perchè, avendo settato nuovi IV, voglio togliere possibili incongruenze!
-
-        RetrieveGit.getJavaFiles(repoPath, releasesList);
-
-        RetrieveGit.checkBuggyness(releasesList, ticketList); //inizialmente buggyness = NO per ogni release
-
-        Metrics.getMetrics(releasesList, repo);
-        createCSV(releasesList, NAMEPROJECT.toLowerCase());
-
-    }
-
-
-    private static void linkTicketCommits() {
-        linkage();
+    private static void linkFunction() {
+    	linkage();
         setResolutionDateAndFV();
         removeUnlinkedTickets();
     }
 
-    private static void linkage() {
-        for (Ticket ticket : ticketList) {
-            ArrayList<LocalDateTime> commitDateList = new ArrayList<>();
+    private static ArrayList<LocalDateTime> findCommitDatesForTicket(Ticket ticket, List<RevCommit> commitList) {
+        ArrayList<LocalDateTime> commitDateList = new ArrayList<>();
+        String ticketID = ticket.getID();
 
-            String ticketID = ticket.getID();
+        for (RevCommit commit : commitList) {
+            String message = commit.getFullMessage();
 
-            for (RevCommit commit : commitList) {
-                String message = commit.getFullMessage();
-
-                if (foundCom(message, ticketID)) {
-                    LocalDateTime commitDate = commit.getAuthorIdent().getWhen().toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime();
-                    commitDateList.add(commitDate);
-                    ticket.getCommitList().add(commit);
-                }
+            if (foundCom(message, ticketID)) {
+                LocalDateTime commitDate = commit.getAuthorIdent().getWhen().toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime();
+                commitDateList.add(commitDate);
+                ticket.getCommitList().add(commit);
             }
         }
+        return commitDateList;
     }
+    private static void updateTicketCommitDates() {
+        for (Ticket ticket : ticketList) {
+            ArrayList<LocalDateTime> commitDateList = findCommitDatesForTicket(ticket, commitList);
+            ticket.setCommitDateList(commitDateList);
+        }
+    }
+    
+    private static void linkage() {
+        updateTicketCommitDates();
+    }
+
+
 
     private static void setResolutionDateAndFV() {
         for (Ticket ticket : ticketList) {
@@ -185,30 +148,30 @@ public class MainClass {
 
 
 
-    public static void cleanTicketInconsistencies() {
-
+    public static void checkTicket() {
         for (Ticket ticket : ticketList) {
-
-            if (ticket.getIV() != 0) {    //se IV è definita
-
-            	if (isTimeOrderCorrect(ticket)) { //Caso corretto
-                    ticket.getAV().clear(); //svuoto la lista di AV per poi aggiornarla con valori corretti
+            if (ticket.getIV() != 0) {
+                if (isTimeOrderCorrect(ticket)) {
+                    ticket.getAV().clear();
                     for (int i = ticket.getIV(); i < ticket.getFV(); i++) {
                         ticket.getAV().add(i);
                     }
-                } else { //caso di errore, cioè IV viene dopo FV oppure OV, e non può essere.
+                } else {
                     setErrorTicket(ticket);
                 }
-            	if (ticket.getOV() == 1) {
-                    handleOVEquals1(ticket);
-                } else {
-                    handleOVNotEquals1(ticket);
-                }
-
+                handleOV(ticket);
             }
-
         }
     }
+
+    private static void handleOV(Ticket ticket) {
+        if (ticket.getOV() == 1) {
+            handleOVEquals1(ticket);
+        } else {
+            handleOVNotEquals1(ticket);
+        }
+    }
+
 
 
     private static boolean isTimeOrderCorrect(Ticket ticket) {
@@ -381,5 +344,52 @@ public static void createCSV(List<Release> releases, String projectName) {
             int avgChgSet = (int) file.getChgSetSizeList().stream().mapToInt(Integer::intValue).average().orElse(0.0); //da calcolare
             fileWriter.append(String.valueOf(avgChgSet));
         }
+    }
+    
+    private static final Logger logger = Logger.getLogger(MainClass.class.getName());
+
+
+    private static List<Release> releasesList;
+    private static List<Ticket> ticketList;
+    private static List<RevCommit> commitList;
+    public static final String NAMEPROJECT = "BOOKKEEPER"; // OR 'AVRO'
+
+
+    public static void main(String[] args) throws IllegalStateException, GitAPIException, IOException, JSONException {
+
+        String repo = "/Users/giuliamenichini/" + NAMEPROJECT.toLowerCase() + "/.git";
+        Path repoPath = Paths.get("/Users/giuliamenichini/" + NAMEPROJECT.toLowerCase());
+
+        // in releases List metto tutte le release del progetto
+        releasesList = RetrieveJira.getListRelease(NAMEPROJECT);
+
+        // in commit List metto tutti i commit del progetto
+        commitList = RetrieveGit.getAllCommit(releasesList, repoPath);
+
+        //prendo tutti i ticket da Jira in accordo alle specifiche
+        ticketList = RetrieveJira.getTickets(releasesList, NAMEPROJECT);
+
+
+        logger.log(Level.INFO, "Eseguo il linkage Tickets - Commits");
+        linkFunction();
+        removeReleaseBeforeHalf(releasesList, ticketList);
+
+
+        checkTicket();
+        RetrieveGit.setBuilder(repo);
+        logger.log(Level.INFO, "Numero ticket = {0}.", ticketList.size());
+
+        Collections.reverse(ticketList); //reverse perchè è moving window
+        Proportion.proportion(ticketList);
+
+        checkTicket();   //devo rifarlo perchè, avendo settato nuovi IV, voglio togliere possibili incongruenze!
+
+        RetrieveGit.getJavaFiles(repoPath, releasesList);
+
+        RetrieveGit.checkBuggyness(releasesList, ticketList); //inizialmente buggyness = NO per ogni release
+
+        Metrics.getMetrics(releasesList, repo);
+        createCSV(releasesList, NAMEPROJECT.toLowerCase());
+
     }
 }
