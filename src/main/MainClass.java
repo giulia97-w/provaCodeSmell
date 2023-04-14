@@ -523,7 +523,6 @@ public class MainClass {
         }
     }
     public static void analyzeDiffEntryMetrics(List<DiffEntry> diffs, List<JavaFile> fileList, String authName, DiffFormatter diff) {
-        int numTouchedClass = countTouchedClasses(diffs);
         for (DiffEntry diffEntry : diffs) {
             String type = diffEntry.getChangeType().toString();
             processDiffEntry(diffEntry, type, authName, fileList,  diff);
