@@ -78,7 +78,8 @@ public class MainClass {
 
     private static void linkFunction() {
     	linkage();
-        setResolutionDateAndFV();
+        setResolutionDateAndFVBookkeeper();
+        setResolutionDateAndFVOpenjpa();
         removeUnlinkedTickets();
     }
 
@@ -106,21 +107,28 @@ public class MainClass {
     }
 
 
-    private static void updateTicketCommitDates() {
-        for (Ticket ticket : ticketList) {
-            ArrayList<LocalDateTime> commitDateList = findCommitDatesForTicket(ticket, commitList);
+    private static void updateTicketCommitDatesBookkeeper() {
+        for (Ticket ticket : ticketListBookkeeper) {
+            ArrayList<LocalDateTime> commitDateList = findCommitDatesForTicket(ticket, commitListBookkeeper);
+            ticket.setCommitDateList(commitDateList);
+        }
+    }
+    private static void updateTicketCommitDatesOpenjpa() {
+        for (Ticket ticket : ticketListOpenjpa) {
+            ArrayList<LocalDateTime> commitDateList = findCommitDatesForTicket(ticket, commitListOpenjpa);
             ticket.setCommitDateList(commitDateList);
         }
     }
     
     private static void linkage() {
-        updateTicketCommitDates();
+        updateTicketCommitDatesBookkeeper();
+        updateTicketCommitDatesOpenjpa();
     }
 
 
 
-    private static void setResolutionDateAndFV() {
-        for (Ticket ticket : ticketList) {
+    private static void setResolutionDateAndFVBookkeeper() {
+        for (Ticket ticket : ticketListBookkeeper) {
             ArrayList<LocalDateTime> commitDateList = ticket.getCommitList().stream()
                     .map(commit -> commit.getAuthorIdent().getWhen().toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime())
                     .sorted()
@@ -129,13 +137,30 @@ public class MainClass {
             if (!commitDateList.isEmpty()) {
                 LocalDateTime resolutionDate = commitDateList.get(commitDateList.size() - 1);
                 ticket.setResolutionDate(resolutionDate);
-                ticket.setFV(RetrieveJira.compareDateVersion(resolutionDate, releasesList));
+                ticket.setFV(RetrieveJira.compareDateVersion(resolutionDate, releasesListBookkeeper));
+                
+            }
+        }
+    }
+    private static void setResolutionDateAndFVOpenjpa() {
+        for (Ticket ticket : ticketListOpenjpa) {
+            ArrayList<LocalDateTime> commitDateList = ticket.getCommitList().stream()
+                    .map(commit -> commit.getAuthorIdent().getWhen().toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime())
+                    .sorted()
+                    .collect(Collectors.toCollection(ArrayList::new));
+
+            if (!commitDateList.isEmpty()) {
+                LocalDateTime resolutionDate = commitDateList.get(commitDateList.size() - 1);
+                ticket.setResolutionDate(resolutionDate);
+                
+                ticket.setFV(RetrieveJira.compareDateVersion(resolutionDate, releasesListOpenjpa));
             }
         }
     }
 
     private static void removeUnlinkedTickets() {
-        ticketList.removeIf(ticket -> ticket.getResolutionDate() == null);
+        ticketListBookkeeper.removeIf(ticket -> ticket.getResolutionDate() == null);
+        ticketListOpenjpa.removeIf(ticket -> ticket.getResolutionDate() == null);
     }
 
 
@@ -182,7 +207,8 @@ public class MainClass {
 
     public static void affectedVersion(int release, List<Ticket> ticket) {
         removeTickets(release, ticket);
-        setAVTickets(release);
+        setAVTicketsBookkeeper(release);
+        setAVTicketsOpenjpa(release);
     }
 
     private static void removeTickets(int release, List<Ticket> ticket) {
@@ -195,8 +221,20 @@ public class MainClass {
         }
     }
 
-    private static void setAVTickets(int release) {
-        for (Ticket t : ticketList) {
+    private static void setAVTicketsBookkeeper(int release) {
+        for (Ticket t : ticketListBookkeeper) {
+            if (t.getOV() > release || t.getFV() > release) {
+                List<Integer> affectedVersion = new ArrayList<>();
+                for (int k = t.getIV(); k < release; k++) {
+                    affectedVersion.add(k);
+                }
+                t.setAV(affectedVersion);
+            }
+        }
+    }
+    
+    private static void setAVTicketsOpenjpa(int release) {
+        for (Ticket t : ticketListOpenjpa) {
             if (t.getOV() > release || t.getFV() > release) {
                 List<Integer> affectedVersion = new ArrayList<>();
                 for (int k = t.getIV(); k < release; k++) {
@@ -207,8 +245,24 @@ public class MainClass {
         }
     }
 
-    public static void checkTicket() {
-        for (Ticket ticket : ticketList) {
+    public static void checkTicketBookkeeper() {
+        for (Ticket ticket : ticketListBookkeeper) {
+            if (ticket.getIV() != 0) {
+                if (isTimeOrderCorrect(ticket)) {
+                    ticket.getAV().clear();
+                    for (int i = ticket.getIV(); i < ticket.getFV(); i++) {
+                        ticket.getAV().add(i);
+                    }
+                } else {
+                    setErrorTicket(ticket);
+                }
+                handleOV(ticket);
+            }
+        }
+    }
+    
+    public static void checkTicketOpenjpa() {
+        for (Ticket ticket : ticketListOpenjpa) {
             if (ticket.getIV() != 0) {
                 if (isTimeOrderCorrect(ticket)) {
                     ticket.getAV().clear();
@@ -336,29 +390,54 @@ public class MainClass {
     private static final Logger logger = Logger.getLogger(MainClass.class.getName());
 
 
-    private static List<Release> releasesList;
-    private static List<Ticket> ticketList;
-    private static List<RevCommit> commitList;
-    public static final String NAMEPROJECT = "BOOKKEEPER"; // OR 'AVRO'
+    private static List<Release> releasesListBookkeeper;
+    private static List<Release> releasesListOpenjpa;
+    private static List<Ticket> ticketListBookkeeper;
+    private static List<Ticket> ticketListOpenjpa;
+    private static List<RevCommit> commitListBookkeeper;
+    private static List<RevCommit> commitListOpenjpa;
+    public static final String PROJECT = "BOOKKEEPER";
+    public static final String PROJECT1 = "OPENJPA";
 
 
     public static void main(String[] args) throws IllegalStateException, GitAPIException, IOException, JSONException {
     	String percorso = "/Users/giuliamenichini/";
-        releasesList = RetrieveJira.getListRelease(NAMEPROJECT);
-        commitList = RetrieveGit.getAllCommit(releasesList, Paths.get("/Users/giuliamenichini/" + NAMEPROJECT.toLowerCase()));
-        ticketList = RetrieveJira.getTickets(releasesList, NAMEPROJECT);
+        releasesListBookkeeper = RetrieveJira.getListRelease(PROJECT);
+        releasesListOpenjpa = RetrieveJira.getListRelease(PROJECT1);
+        commitListBookkeeper = RetrieveGit.getAllCommit(releasesListBookkeeper, Paths.get(percorso + PROJECT.toLowerCase()));
+        commitListOpenjpa = RetrieveGit.getAllCommit(releasesListOpenjpa, Paths.get(percorso + PROJECT1.toLowerCase()));
+        ticketListBookkeeper = RetrieveJira.getTickets(releasesListBookkeeper, PROJECT);
+        ticketListOpenjpa = RetrieveJira.getTickets(releasesListOpenjpa, PROJECT1);
+        
+        
+        //Bookkeeper
         linkFunction();
-        removeReleaseBeforeHalf(releasesList, ticketList);
-        checkTicket();
-        RetrieveGit.setBuilder(percorso + NAMEPROJECT.toLowerCase() + "/.git");
-        logger.log(Level.INFO, "Numero ticket = {0}.", ticketList.size());
-        Collections.reverse(ticketList); 
-        Proportion.proportion(ticketList);
-        checkTicket();  
-        RetrieveGit.getJavaFiles(Paths.get(percorso + NAMEPROJECT.toLowerCase()), releasesList);
-        RetrieveGit.checkBuggyness(releasesList, ticketList); 
-        Metrics.getMetrics(releasesList, percorso + NAMEPROJECT.toLowerCase() + "/.git");
-        createCSV(releasesList, NAMEPROJECT.toLowerCase());
+        removeReleaseBeforeHalf(releasesListBookkeeper, ticketListBookkeeper);
+        checkTicketBookkeeper(); 
+        RetrieveGit.setBuilder(percorso + PROJECT.toLowerCase() + "/.git");
+        logger.log(Level.INFO, "Numero ticket = {0}.", ticketListBookkeeper.size());
+        Collections.reverse(ticketListBookkeeper); 
+        Proportion.proportion(ticketListBookkeeper);
+        checkTicketBookkeeper();  
+        RetrieveGit.getJavaFiles(Paths.get(percorso + PROJECT.toLowerCase()), releasesListBookkeeper);
+        RetrieveGit.checkBuggyness(releasesListBookkeeper, ticketListBookkeeper); 
+        Metrics.getMetrics(releasesListBookkeeper, percorso + PROJECT.toLowerCase() + "/.git");
+        createCSV(releasesListBookkeeper, PROJECT.toLowerCase());
+
+        
+        //openjpa
+        linkFunction();
+        removeReleaseBeforeHalf(releasesListOpenjpa, ticketListOpenjpa);
+        checkTicketOpenjpa(); 
+        RetrieveGit.setBuilder(percorso + PROJECT1.toLowerCase() + "/.git");
+        logger.log(Level.INFO, "Numero ticket = {0}.", ticketListOpenjpa.size());
+        Collections.reverse(ticketListOpenjpa);
+        Proportion.proportion(ticketListOpenjpa);
+        checkTicketOpenjpa(); 
+        RetrieveGit.getJavaFiles(Paths.get(percorso + PROJECT1.toLowerCase()), releasesListOpenjpa);
+        RetrieveGit.checkBuggyness(releasesListOpenjpa, ticketListOpenjpa); 
+        Metrics.getMetrics(releasesListOpenjpa, percorso + PROJECT1.toLowerCase() + "/.git");
+        createCSV(releasesListOpenjpa, PROJECT1.toLowerCase());
 
     }
 }
