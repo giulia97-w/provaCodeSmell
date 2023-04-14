@@ -402,7 +402,10 @@ public class MainClass {
 
     public static void main(String[] args) throws IllegalStateException, GitAPIException, IOException, JSONException {
     	String endPath = "/.git";
-    	String percorso = "/Users/giuliamenichini/";
+    	
+    	String name = "giuliamenichini";
+    	String percorso = "/Users/" + name + "/";
+    	
         releasesListBookkeeper = RetrieveJira.getListRelease(PROJECT);
         releasesListOpenjpa = RetrieveJira.getListRelease(PROJECT1);
         commitListBookkeeper = RetrieveGit.getAllCommit(releasesListBookkeeper, Paths.get(percorso + PROJECT.toLowerCase()));
