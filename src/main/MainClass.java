@@ -40,6 +40,9 @@ import java.util.stream.Collectors;
 
 public class MainClass {
 	
+	private static final String ENDFILE = ".java";
+	private static final String DELETE = "DELETE";
+	
 	private static void update(FileWriter fileWriter, Release release, JavaFile file) throws IOException {
         fileWriter.append(release.getIndex().toString());
         fileWriter.append(",");
@@ -505,16 +508,16 @@ public class MainClass {
     public static int countTouchedClasses(List<DiffEntry> diffs) {
         int numTouchedClass = 0;
         for (DiffEntry diffEntry : diffs) {
-            if (diffEntry.toString().contains(".java")) {
+            if (diffEntry.toString().contains(ENDFILE)) {
                 numTouchedClass++;
             }
         }
         return numTouchedClass;
     }
     public static void processDiffEntry(DiffEntry diffEntry, String type, String authName, List<JavaFile> fileList, int numTouchedClass, DiffFormatter diff) {
-        if (diffEntry.toString().contains(".java") && type.equals("MODIFY") || type.equals("DELETE") || type.equals("ADD") || type.equals("RENAME")) {
+        if (diffEntry.toString().contains(ENDFILE) && type.equals("MODIFY") || type.equals(DELETE) || type.equals("ADD") || type.equals("RENAME")) {
             String fileName;
-            if (type.equals("DELETE") || type.equals("RENAME")) fileName = diffEntry.getOldPath();
+            if (type.equals(DELETE) || type.equals("RENAME")) fileName = diffEntry.getOldPath();
             else fileName = diffEntry.getNewPath();
             calculateMetrics(fileList, fileName, authName, numTouchedClass, diffEntry, diff);
         }
@@ -550,7 +553,7 @@ public class MainClass {
     private static void fileList(List<JavaFile> fileList, String fileName, String authName, int numTouchedClass, int locAdded, int churn) {
         JavaFile file = findFile(fileList, fileName);
         if (file != null) {
-            existingFile(file, authName, numTouchedClass, locAdded, churn);
+            existingFile(file, authName, locAdded, churn);
         } else {
             addNewFile(fileList, fileName, authName, numTouchedClass, locAdded, churn);
         }
@@ -565,7 +568,7 @@ public class MainClass {
         return null;
     }
 
-    private static void existingFile(JavaFile file, String authName, int numTouchedClass, int locAdded, int churn) {
+    private static void existingFile(JavaFile file, String authName,  int locAdded, int churn) {
         file.setNr(file.getNr() + 1);
         if (!file.getNAuth().contains(authName)) {
             file.getNAuth().add(authName);
@@ -579,7 +582,7 @@ public class MainClass {
 
     private static void addNewFile(List<JavaFile> fileList, String fileName, String authName, int numTouchedClass, int locAdded, int churn) {
         JavaFile javaFile = new JavaFile(fileName);
-        applyMetricsNewFile(javaFile, numTouchedClass, locAdded, churn, fileList, authName);
+        applyMetricsNewFile(javaFile,  locAdded, churn, fileList, authName);
     }
     private static void addToLocAddedList(JavaFile file, int locAdded) {
     	file.getLocAddedList().add(locAdded);
@@ -614,7 +617,7 @@ public class MainClass {
     private static void addToFileList(List<JavaFile> fileList, JavaFile javaFile) {
         fileList.add(javaFile);
     }
-    public static void applyMetricsNewFile(JavaFile javaFile, int numTouchedClass, int locAdded, int churn, List<JavaFile> fileList, String authName) {
+    public static void applyMetricsNewFile(JavaFile javaFile, int locAdded, int churn, List<JavaFile> fileList, String authName) {
         setNr(javaFile);
         setNAuth(javaFile, authName);
         
@@ -858,7 +861,7 @@ public class MainClass {
 
         private static boolean isBuggyDiffEntry(DiffEntry diff) {
             String type = diff.getChangeType().toString();
-            return diff.toString().contains(".java") && (type.equals("MODIFY") || type.equals("DELETE"));
+            return diff.toString().contains(ENDFILE) && (type.equals("MODIFY") || type.equals(DELETE));
         }
 
         private static String getFilePathFromDiffEntry(DiffEntry diff) {
