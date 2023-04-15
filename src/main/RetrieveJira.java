@@ -20,7 +20,7 @@ public class RetrieveJira {
     private RetrieveJira() {
     }
     private static final Logger logger = Logger.getLogger(RetrieveJira.class.getName());
-    private Integer numVersions;
+    private static Integer numVersions;
 
     public Integer getNumVersions() {
         return numVersions;
@@ -85,7 +85,7 @@ public class RetrieveJira {
 
             }
         }
-        Collections.sort(releases, (dateTime1, dateTime2) -> dateTime1.compareTo(dateTime2));
+        Collections.sort(releases, Comparable::compareTo);
         
         String outname = projName + "VersionInfo.csv";
       //Name of CSV for output
@@ -107,6 +107,7 @@ public class RetrieveJira {
         } catch (IOException e) {
             logger.log(Level.SEVERE, "Error in csv writer", e);
         }
+
 
          
    
