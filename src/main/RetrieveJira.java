@@ -8,6 +8,7 @@ import org.json.JSONObject;
 import java.io.*;
 import java.net.URL;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
@@ -21,7 +22,7 @@ public class RetrieveJira {
     private static Map<LocalDateTime, String> releasesID;
     private static List<LocalDateTime> releases;
     private static final String RELEASEDATE = "releaseDate";    //added for resolve code smells
-	public static Integer numVersions;
+	public static Integer numVersions = null;
 
     private static String readAll(Reader rd) throws IOException {
         StringBuilder sb = new StringBuilder();
@@ -36,10 +37,9 @@ public class RetrieveJira {
     public static JSONObject readJsonFromUrl(String url) throws IOException, JSONException {
         InputStream is = new URL(url).openStream();
         try {
-           BufferedReader rd = new BufferedReader(new InputStreamReader(is, Charset.forName("UTF-8")));
+           BufferedReader rd = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8));
            String jsonText = readAll(rd);
-           JSONObject json = new JSONObject(jsonText);
-           return json;
+           return new JSONObject(jsonText);
          } finally {
            is.close();
          }
@@ -58,8 +58,8 @@ public class RetrieveJira {
         String url = "https://issues.apache.org/jira/rest/api/2/project/" + projName;
         JSONObject json = readJsonFromUrl(url);
         JSONArray versions = json.getJSONArray("versions");
-        releasesNames = new HashMap<LocalDateTime, String>();
-        releasesID = new HashMap<LocalDateTime, String>();
+        releasesNames = new HashMap<>();
+        releasesID = new HashMap<>();
         for (i = 0; i < versions.length(); i++) {
             String name = "";
             String id = "";
