@@ -42,15 +42,15 @@ public class RetrieveJira {
 
 
     public static JSONObject readJsonFromUrl(String url) throws IOException, JSONException {
-        InputStream is = new URL(url).openStream();
-        try {
-           BufferedReader rd = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8));
-           String jsonText = readAll(rd);
-           return new JSONObject(jsonText);
-         } finally {
-           is.close();
-         }
-    }
+        try (InputStream is = new URL(url).openStream();
+        	     BufferedReader rd = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8))) {
+        	    String jsonText = readAll(rd);
+        	    return new JSONObject(jsonText);
+        	} catch (IOException e) {
+        	    logger.log(Level.SEVERE, "Errore durante la lettura del file JSON", e);
+        	}
+		return null;}
+
 
     
 
