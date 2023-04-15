@@ -21,11 +21,12 @@ import org.eclipse.jgit.util.io.DisabledOutputStream;
 import org.json.JSONException;
 
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.File;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.LocalDateTime;
@@ -33,8 +34,6 @@ import java.time.ZoneId;
 import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 
@@ -43,7 +42,7 @@ public class MainClass {
 	private static final String ENDFILE = ".java";
 	private static final String DELETE = "DELETE";
 	
-	private static void update(FileWriter fileWriter, Release release, JavaFile file) throws IOException {
+	private static void update(BufferedWriter fileWriter, Release release, JavaFile file) throws IOException {
         fileWriter.append(release.getIndex().toString());
         fileWriter.append(",");
         fileWriter.append(file.getName()); 
@@ -62,12 +61,12 @@ public class MainClass {
         fileWriter.append(",");
         fileWriter.append(String.valueOf(file.getNAuth().size()));
         fileWriter.append(",");
-        fileWriter.append(file.getBugg());
+        fileWriter.append(file.getBuggyness());
         fileWriter.append("\n");
         fileWriter.flush();
     }
 
-    private static void writeMaxAndAvgLOCAdded(FileWriter fileWriter, JavaFile file) throws IOException {
+    private static void writeMaxAndAvgLOCAdded(BufferedWriter fileWriter, JavaFile file) throws IOException {
         if (file.getLOCadded().equals(0)) { //se non ho aggiunto nulla niente max e avg
             fileWriter.append("0");
             fileWriter.append(",");
@@ -81,7 +80,7 @@ public class MainClass {
         }
     }
 
-    private static void writeMaxAndAvgChurn(FileWriter fileWriter, JavaFile file) throws IOException {
+    private static void writeMaxAndAvgChurn(BufferedWriter fileWriter, JavaFile file) throws IOException {
         if (file.getChurn().equals(0)) {
             fileWriter.append("0");
             fileWriter.append(",");
@@ -110,22 +109,25 @@ public class MainClass {
     private static void addCommitToTicket(Ticket ticket, RevCommit commit) {
         ticket.getCommitList().add(commit);
     }
+    /**
+     * Returns a list of LocalDateTime objects representing the dates of all commits related to the specified ticket.
+     * If no commits are found, an empty list is returned.
+     */
     private static ArrayList<LocalDateTime> findCommitDatesForTicket(Ticket ticket, List<RevCommit> commitList) {
         ArrayList<LocalDateTime> commitDateList = new ArrayList<>();
+
         String ticketID = ticket.getID();
-
-        for (RevCommit commit : commitList) {
-            String message = commit.getFullMessage();
-
-            if (foundCom(message, ticketID)) {
-                LocalDateTime commitDate = getCommitDate(commit);
-                commitDateList.add(commitDate);
-                addCommitToTicket(ticket, commit);
-            }
-        }
+        commitList.stream()
+                  .filter(commit -> commit.getFullMessage().contains(ticketID))
+                  .forEach(commit -> {
+                      LocalDateTime commitDate = getCommitDate(commit);
+                      commitDateList.add(commitDate);
+                      addCommitToTicket(ticket, commit);
+                  });
 
         return commitDateList;
     }
+
 
 
     private static void updateTicketCommitDatesBookkeeper() {
@@ -185,14 +187,7 @@ public class MainClass {
     }
 
 
-    private static boolean foundCom(String message, String ticketID) {
-        // Verifica se il ticketID è presente nella stringa del messaggio di commit.
-        String regex = "(^|[^A-Za-z0-9])" + ticketID + "([^A-Za-z0-9]|$)";
-        Pattern pattern = Pattern.compile(regex, Pattern.CASE_INSENSITIVE);
-        Matcher matcher = pattern.matcher(message);
-
-        return matcher.find();
-    }
+    
 
 
     public static void removeReleaseBeforeHalf(List<Release> releasesList, List<Ticket> ticketList) {
@@ -386,22 +381,20 @@ public class MainClass {
     }
 
     public static void createCSV(List<Release> releases, String projectName) {
+        try (BufferedWriter writer = Files.newBufferedWriter(Paths.get(projectName.toLowerCase() + "Dataset.csv"))) {
+            // Creazione del file CSV e scrittura dell'intestazione.
+            writer.write("RELEASE,FILENAME,SIZE,LOC_added,MAX_LOC_Added,AVG_LOC_Added,CHURN,MAX_Churn,AVG_Churn,NR,NAUTH,BUGGYNESS\n");
 
-    	
-
-    	try (FileWriter fileWriter = new FileWriter(projectName.toLowerCase() + "Dataset.csv")) {
-    	    // Creazione del file CSV e scrittura dell'intestazione.
-    	    fileWriter.append("RELEASE,FILENAME,SIZE,LOC_added,MAX_LOC_Added,AVG_LOC_Added,CHURN,MAX_Churn,AVG_Churn,NR,NAUTH,BUGGYNESS\n");
-
-    	    // Scrittura dei dati relativi a ciascun file per ogni release.
-    	    for (Release release : releases) {
-    	        writeReleaseMetrics(fileWriter, release);
-    	    }
-    	} catch (IOException e) {
-    	    logger.log(Level.SEVERE, "Errore nella creazione del dataset", e);
-    	}
+            // Scrittura dei dati relativi a ciascun file per ogni release.
+            for (Release release : releases) {
+                writeReleaseMetrics(writer, release);
+            }
+        } catch (IOException e) {
+            logger.log(Level.SEVERE, "Errore nella creazione del dataset", e);
+        }
     }
-    private static void writeReleaseMetrics(FileWriter fileWriter, Release release) throws IOException {
+
+    private static void writeReleaseMetrics( BufferedWriter fileWriter, Release release) throws IOException {
     		for (JavaFile file : release.getFile()) {
     		update(fileWriter, release, file);
     		}
@@ -781,7 +774,7 @@ public class MainClass {
 
         private static void setDefaultJavaFileAttributes(TreeWalk treeWalk, JavaFile file) throws IOException {
             // Imposta gli attributi di default per un nuovo file Java
-            file.setBugg("false");
+            file.setBuggyness("false");
             file.setNr(0);
             file.setNAuth(new ArrayList<>());
             file.setLOCadded(0);
@@ -887,7 +880,7 @@ public class MainClass {
         private static void setBuggynessForJavaFile(String file, List<JavaFile> javaFiles) {
             for (JavaFile javaFile : javaFiles) {
                 if (javaFile.getName().equals(file)) {
-                    javaFile.setBugg("true");
+                    javaFile.setBuggyness("true");
                 }
             }
         }
