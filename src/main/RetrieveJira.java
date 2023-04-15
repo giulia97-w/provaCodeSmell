@@ -12,11 +12,14 @@ import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public class RetrieveJira {
 
     private RetrieveJira() {
     }
+    private static final Logger logger = Logger.getLogger(RetrieveJira.class.getName());
 
     private static Map<LocalDateTime, String> releasesNames;
     private static Map<LocalDateTime, String> releasesID;
@@ -75,46 +78,29 @@ public class RetrieveJira {
 
             }
         }
-        Collections.sort(releases, new Comparator<LocalDateTime>(){
-            //@Override
-            public int compare(LocalDateTime o1, LocalDateTime o2) {
-                return o1.compareTo(o2);
-            }
-         });
+        Collections.sort(releases, (dateTime1, dateTime2) -> dateTime1.compareTo(dateTime2));
         
-         FileWriter fileWriter = null;
-	 try {
-            fileWriter = null;
-            String outname = projName + "VersionInfo.csv";
-				    //Name of CSV for output
-				    fileWriter = new FileWriter(outname);
+        String outname = projName + "VersionInfo.csv";
+      //Name of CSV for output
+        try (FileWriter fileWriter = new FileWriter(outname)) {
             fileWriter.append("Index,Version ID,Version Name,Date");
             fileWriter.append("\n");
             numVersions = releases.size();
-            for ( i = 0; i < releases.size(); i++) {
-               Integer index = i + 1;
-               fileWriter.append(index.toString());
-               fileWriter.append(",");
-               fileWriter.append(releasesID.get(releases.get(i)));
-               fileWriter.append(",");
-               fileWriter.append(releasesNames.get(releases.get(i)));
-               fileWriter.append(",");
-               fileWriter.append(releases.get(i).toString());
-               fileWriter.append("\n");
+            for (i = 0; i < releases.size(); i++) {
+                Integer index = i + 1;
+                fileWriter.append(index.toString());
+                fileWriter.append(",");
+                fileWriter.append(releasesID.get(releases.get(i)));
+                fileWriter.append(",");
+                fileWriter.append(releasesNames.get(releases.get(i)));
+                fileWriter.append(",");
+                fileWriter.append(releases.get(i).toString());
+                fileWriter.append("\n");
             }
+        } catch (IOException e) {
+            logger.log(Level.SEVERE, "Error in csv writer", e);
+        }
 
-         } catch (Exception e) {
-            System.out.println("Error in csv writer");
-            e.printStackTrace();
-         } finally {
-            try {
-               fileWriter.flush();
-               fileWriter.close();
-            } catch (IOException e) {
-               System.out.println("Error while flushing/closing fileWriter !!!");
-               e.printStackTrace();
-            }
-         }
          
    
 
