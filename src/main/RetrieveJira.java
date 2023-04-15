@@ -7,7 +7,6 @@ import org.json.JSONObject;
 
 import java.io.*;
 import java.net.URL;
-import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -26,9 +25,7 @@ public class RetrieveJira {
         return numVersions;
     }
 
-    public void setNumVersions(Integer numVersions) {
-        this.numVersions = numVersions;
-    }
+    
     private static Map<LocalDateTime, String> releasesNames;
     private static Map<LocalDateTime, String> releasesID;
     private static List<LocalDateTime> releases;
