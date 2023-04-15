@@ -20,12 +20,19 @@ public class RetrieveJira {
     private RetrieveJira() {
     }
     private static final Logger logger = Logger.getLogger(RetrieveJira.class.getName());
+    private Integer numVersions;
 
+    public Integer getNumVersions() {
+        return numVersions;
+    }
+
+    public void setNumVersions(Integer numVersions) {
+        this.numVersions = numVersions;
+    }
     private static Map<LocalDateTime, String> releasesNames;
     private static Map<LocalDateTime, String> releasesID;
     private static List<LocalDateTime> releases;
     private static final String RELEASEDATE = "releaseDate";    //added for resolve code smells
-	public static Integer numVersions = null;
 
     private static String readAll(Reader rd) throws IOException {
         StringBuilder sb = new StringBuilder();
@@ -105,8 +112,7 @@ public class RetrieveJira {
    
 
 
-        List<Release> releaseListNew = createReleaseList(releases, releasesNames);
-        return releaseListNew;
+        return createReleaseList(releases, releasesNames);
 
     }
     
