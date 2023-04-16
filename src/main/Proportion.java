@@ -24,13 +24,14 @@ private static int movingWindows;
     }
 
     private static void findInjectedVersion(List<Ticket> ticketList, List<Ticket> injectedVersion) {
-        for (Ticket ticket : ticketList) {
-            if (ticket.getOV().equals(ticket.getFV()) && ticket.getIV() == 0) {
+        ticketList.stream()
+            .filter(ticket -> ticket.getOV().equals(ticket.getFV()) && ticket.getIV() == 0)
+            .forEach(ticket -> {
                 ticket.setIV(ticket.getFV());
                 injectedVersion.add(ticket);
-            }
-        }
-    }
+            });
+}
+
 
     private static int calculatemovingWindows(int total) {
         return total / 100;
@@ -40,7 +41,7 @@ private static int movingWindows;
         for (Ticket ticket : ticketList) {
             if (!injectedVersion.contains(ticket)) {
                 if (ticket.getIV() != 0) {
-                	addTicketToMovingWindow(newProportionTicket, ticket);
+                	movingWindows(newProportionTicket, ticket);
                 } else {
                     injectedProportion(newProportionTicket, ticket);
                 }
@@ -48,7 +49,7 @@ private static int movingWindows;
         }
     }
 
-    public static void addTicketToMovingWindow(List<Ticket> movingWindow, Ticket ticket) {
+    public static void movingWindows(List<Ticket> movingWindow, Ticket ticket) {
         if (movingWindow.size() < movingWindows) {
             movingWindow.add(ticket); 
         } else {
@@ -59,23 +60,23 @@ private static int movingWindows;
 
 
     public static void injectedProportion(List<Ticket> newProportionTicket, Ticket ticket) {
-        float pTotalSum = calculatePTotalSum(newProportionTicket);
-        int avgPFloor = calculateAvgPFloor(pTotalSum);
+        float p = calculateP(newProportionTicket);
+        int avgPFloor = calculateAvgPFloor(p);
         int predictedIv = calculatePredictedIv(ticket, avgPFloor);
         ticket.setIV(Math.min(predictedIv, ticket.getOV()));
     }
 
-    private static float calculatePTotalSum(List<Ticket> newProportionTicket) {
-        float pTotalSum = 0;
+    private static float calculateP(List<Ticket> newProportionTicket) {
+        float p = 0;
         for (Ticket t : newProportionTicket) {
-            float p = calculatePFormula(t);
-            pTotalSum += p;
+            float proportion = obtainingP(t);
+            proportion += proportion;
         }
-        return pTotalSum;
+        return p;
     }
 
-    private static int calculateAvgPFloor(float pTotalSum) {
-        return (int) Math.floor(pTotalSum / movingWindows);
+    private static int calculateAvgPFloor(float p) {
+        return (int) Math.floor(p / movingWindows);
     }
 
     private static int calculatePredictedIv(Ticket ticket, int avgPFloor) {
@@ -86,8 +87,8 @@ private static int movingWindows;
 
 
     public static void injectedProportion1(List<Ticket> newProportionTicket,Ticket ticket){
-        float pTotalSum = calculatePTotalSum(newProportionTicket);
-        int avgPFloor = calculateAverageIV(pTotalSum);
+        float p = calculateP(newProportionTicket);
+        int avgPFloor = calculateAverageIV(p);
         int fv = ticket.getFV();
         int ov = ticket.getOV();
         int predictedIv = fv-(fv-ov)*avgPFloor;
@@ -95,8 +96,8 @@ private static int movingWindows;
     }
 
 
-    private static int calculateAverageIV(float pTotalSum) {
-        return (int)Math.floor(pTotalSum/movingWindows);
+    private static int calculateAverageIV(float p) {
+        return (int)Math.floor(p/movingWindows);
     }
 
     /**
@@ -104,7 +105,7 @@ private static int movingWindows;
      * @param ticket il Ticket per cui calcolare la proporzione
      * @return la proporzione P calcolata
      */
-    private static float calculatePFormula(Ticket ticket) {
+    private static float obtainingP(Ticket ticket) {
         final float fv = ticket.getFV();
         final float ov = ticket.getOV();
         final float iv = ticket.getIV();

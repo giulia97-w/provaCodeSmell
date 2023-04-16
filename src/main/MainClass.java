@@ -4,6 +4,7 @@ package main;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.diff.DiffEntry;
+import org.eclipse.jgit.diff.DiffEntry.ChangeType;
 import org.eclipse.jgit.diff.DiffFormatter;
 import org.eclipse.jgit.diff.Edit;
 import org.eclipse.jgit.diff.RawTextComparator;
@@ -11,6 +12,7 @@ import org.eclipse.jgit.lib.ObjectId;
 import org.eclipse.jgit.lib.ObjectLoader;
 import org.eclipse.jgit.lib.ObjectReader;
 import org.eclipse.jgit.lib.Repository;
+import org.eclipse.jgit.revwalk.DepthWalk.Commit;
 import org.eclipse.jgit.revwalk.RevCommit;
 import org.eclipse.jgit.revwalk.RevWalk;
 import org.eclipse.jgit.storage.file.FileRepositoryBuilder;
@@ -19,6 +21,10 @@ import org.eclipse.jgit.treewalk.EmptyTreeIterator;
 import org.eclipse.jgit.treewalk.TreeWalk;
 import org.eclipse.jgit.util.io.DisabledOutputStream;
 import org.json.JSONException;
+
+import weka.core.Instances;
+import weka.core.converters.ArffSaver;
+import weka.core.converters.CSVLoader;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
@@ -39,60 +45,39 @@ import java.util.stream.Collectors;
 
 public class MainClass {
 	
+	
+	
+	
 	private static final String ENDFILE = ".java";
 	private static final String DELETE = "DELETE";
 	
 	private static void update(BufferedWriter fileWriter, Release release, JavaFile file) throws IOException {
-        fileWriter.append(release.getIndex().toString());
-        fileWriter.append(",");
-        fileWriter.append(file.getName()); 
-        fileWriter.append(",");
-        fileWriter.append(file.getLOC().toString()); 
-        fileWriter.append(",");
-        fileWriter.append(file.getLOCadded().toString()); 
-        fileWriter.append(",");
-        writeMaxAndAvgLOCAdded(fileWriter, file); 
-        fileWriter.append(",");
-        fileWriter.append(file.getChurn().toString());
-        fileWriter.append(",");
-        writeMaxAndAvgChurn(fileWriter, file); 
-        fileWriter.append(",");
-        fileWriter.append(file.getNr().toString());
-        fileWriter.append(",");
-        fileWriter.append(String.valueOf(file.getNAuth().size()));
-        fileWriter.append(",");
-        fileWriter.append(file.getBuggyness());
-        fileWriter.append("\n");
-        fileWriter.flush();
-    }
+		StringBuilder sb = new StringBuilder();
+		sb.append(release.getIndex()).append(",");
+		sb.append(file.getName()).append(",");
+		sb.append(file.getLOC()).append(",");
+		sb.append(file.getLOCadded()).append(",");
+		writeMaxAndAvg(sb, file.getLocAddedList());
+		sb.append(",");
+		sb.append(file.getChurn()).append(",");
+		writeMaxAndAvg(sb, file.getChurnList());
+		sb.append(",");
+		sb.append(file.getNr()).append(",");
+		sb.append(file.getNAuth().size()).append(",");
+		sb.append(file.getBuggyness()).append("\n");
+		fileWriter.write(sb.toString());
+		fileWriter.flush();
+		}
 
-    private static void writeMaxAndAvgLOCAdded(BufferedWriter fileWriter, JavaFile file) throws IOException {
-        if (file.getLOCadded().equals(0)) { //se non ho aggiunto nulla niente max e avg
-            fileWriter.append("0");
-            fileWriter.append(",");
-            fileWriter.append("0");
-        } else {
-            int maxLocAdded = Collections.max((file.getLocAddedList())); //prendo il max dalla lista
-            fileWriter.append(String.valueOf(maxLocAdded)); //scrivo tale massimo
-            fileWriter.append(",");
-            int avgLocAdded = (int)file.getLocAddedList().stream().mapToInt(Integer::intValue).average().orElse(0.0); //easy way to avg
-            fileWriter.append(String.valueOf(avgLocAdded));
-        }
-    }
-
-    private static void writeMaxAndAvgChurn(BufferedWriter fileWriter, JavaFile file) throws IOException {
-        if (file.getChurn().equals(0)) {
-            fileWriter.append("0");
-            fileWriter.append(",");
-            fileWriter.append("0");
-        } else {
-            int maxChurn = Collections.max((file.getChurnList()));
-            fileWriter.append(String.valueOf(maxChurn));
-            fileWriter.append(",");
-            int avgChurn = (int) file.getChurnList().stream().mapToInt(Integer::intValue).average().orElse(0.0); //easy way
-            fileWriter.append(String.valueOf(avgChurn));
-        }
-    }
+	private static void writeMaxAndAvg(StringBuilder sb, List<Integer> list) {
+		if (list.isEmpty()) {
+			sb.append("0,0");
+			return;
+		}
+		int max = Collections.max(list);
+			double avg = list.stream().mapToInt(Integer::intValue).average().orElse(0.0);
+			sb.append(max).append(",").append((int)avg);
+		}
 
     
 
@@ -160,7 +145,7 @@ public class MainClass {
             if (!commitDateList.isEmpty()) {
                 LocalDateTime resolutionDate = commitDateList.get(commitDateList.size() - 1);
                 ticket.setResolutionDate(resolutionDate);
-                ticket.setFV(RetrieveJira.compareDateVersion(resolutionDate, releasesListBookkeeper));
+                ticket.setFV(afterBeforeDate(resolutionDate, releasesListBookkeeper));
                 
             }
         }
@@ -176,7 +161,7 @@ public class MainClass {
                 LocalDateTime resolutionDate = commitDateList.get(commitDateList.size() - 1);
                 ticket.setResolutionDate(resolutionDate);
                 
-                ticket.setFV(RetrieveJira.compareDateVersion(resolutionDate, releasesListOpenjpa));
+                ticket.setFV(afterBeforeDate(resolutionDate, releasesListOpenjpa));
             }
         }
     }
@@ -437,10 +422,10 @@ public class MainClass {
         setBuilder(percorso + PROJECT.toLowerCase() + endPath);
         logger.log(Level.INFO, "Numero ticket = {0}.", ticketListBookkeeper.size());
         Collections.reverse(ticketListBookkeeper); 
-        Proportion.proportion(ticketListBookkeeper);
+        Proportion.findProportion(ticketListBookkeeper);
         checkTicketBookkeeper();  
         getJavaFiles(Paths.get(percorso + PROJECT.toLowerCase()), releasesListBookkeeper);
-        checkBuggyness(releasesListBookkeeper, ticketListBookkeeper); 
+        isBuggy(releasesListBookkeeper, ticketListBookkeeper); 
         getRepo(releasesListBookkeeper, percorso + PROJECT.toLowerCase() + endPath);
         createCSV(releasesListBookkeeper, PROJECT.toLowerCase());
 
@@ -452,13 +437,25 @@ public class MainClass {
         setBuilder(percorso + PROJECT1.toLowerCase() + endPath);
         logger.log(Level.INFO, "Numero ticket = {0}.", ticketListOpenjpa.size());
         Collections.reverse(ticketListOpenjpa);
-        Proportion.proportion(ticketListOpenjpa);
+        Proportion.findProportion(ticketListOpenjpa);
         checkTicketOpenjpa(); 
         getJavaFiles(Paths.get(percorso + PROJECT1.toLowerCase()), releasesListOpenjpa);
-        checkBuggyness(releasesListOpenjpa, ticketListOpenjpa); 
+        isBuggy(releasesListOpenjpa, ticketListOpenjpa); 
         getRepo(releasesListOpenjpa, percorso + PROJECT1.toLowerCase() + endPath);
         createCSV(releasesListOpenjpa, PROJECT1.toLowerCase());
+        logger.log(Level.INFO, "Creando il file .Arff");
+        CSVLoader loader = new CSVLoader();
+        loader.setSource(new File("/Users/giuliamenichini/eclipse-workspace/ISW2/bookkeeperDataset.csv"));
+        Instances data = loader.getDataSet();
 
+        // Salva il file ARFF
+        ArffSaver saver = new ArffSaver();
+        saver.setInstances(data);
+        saver.setFile(new File("/Users/giuliamenichini/eclipse-workspace/ISW2/bookkeeperDataset.arff"));
+        saver.writeBatch();
+        logger.log(Level.INFO, "File .Arff creato");
+
+    
     }
     
   
@@ -474,55 +471,72 @@ public class MainClass {
         analyzeMetrics(releasesList, repository);
     }
 
-    public static void analyzeMetrics(List<Release> releasesList, Repository repository) throws IOException {
-        releasesList.forEach(release -> {
-            List<JavaFile> filesJavaListPerRelease = new ArrayList<>();
-            release.getCommitList().forEach(commit -> {
-                try (DiffFormatter diff = new DiffFormatter(DisabledOutputStream.INSTANCE)) {
-                    diff.setRepository(repository);
-                    diff.setDiffComparator(RawTextComparator.DEFAULT);
-                    diff.setDetectRenames(true);
-                    String authName = commit.getAuthorIdent().getName();
-                    List<DiffEntry> diffs = getDiffs(commit);
-                    if (diffs != null) {
-                        analyzeDiffEntryMetrics(diffs, filesJavaListPerRelease, authName, diff);
-                    }
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            });
-            metricsOfFilesByRelease(filesJavaListPerRelease, release);
-        });
+    public static void analyzeMetrics(List<Release> releasesList, Repository repository) {
+    	for (Release release : releasesList) {
+    	List<JavaFile> filesJavaListPerRelease = analyzeRelease(release, repository);
+    	metricsOfFilesByRelease(filesJavaListPerRelease, release);
+    	}
+    }
+
+    private static List<JavaFile> analyzeRelease(Release release, Repository repository) {
+    	List<JavaFile> filesJavaListPerRelease = new ArrayList<>();
+    	for (RevCommit commit : release.getCommitList()) {
+    	try (DiffFormatter diff = new DiffFormatter(DisabledOutputStream.INSTANCE)) {
+	    	diff.setRepository(repository);
+	    	diff.setDiffComparator(RawTextComparator.DEFAULT);
+	    	diff.setDetectRenames(true);
+	    	String authName = commit.getAuthorIdent().getName();
+	    	List<DiffEntry> diffs = getDiffs(commit);
+    	if (diffs != null) {
+	    	analyzeDiffEntryMetrics(diffs, filesJavaListPerRelease, authName, diff);
+	    	}
+	    } catch (IOException e) {
+	    	e.printStackTrace();
+	    }
+	   }
+    		return filesJavaListPerRelease;
     }
 
 
 
 
-    public static int countTouchedClasses(List<DiffEntry> diffs) {
-        int numTouchedClass = 0;
-        for (DiffEntry diffEntry : diffs) {
-            if (diffEntry.toString().contains(ENDFILE)) {
-                numTouchedClass++;
-            }
-        }
-        return numTouchedClass;
-    }
+    public static long countTouchedClasses(List<DiffEntry> diffs) {
+    	return diffs.stream()
+    	.filter(diffEntry -> diffEntry.toString().contains(ENDFILE))
+    	.count();
+    	}
     public static void processDiffEntry(DiffEntry diffEntry, String type, String authName, List<JavaFile> fileList, DiffFormatter diff) {
-        if (diffEntry.toString().contains(ENDFILE) && type.equals("MODIFY") || type.equals(DELETE) || type.equals("ADD") || type.equals("RENAME")) {
-            String fileName;
-            if (type.equals(DELETE) || type.equals("RENAME")) fileName = diffEntry.getOldPath();
-            else fileName = diffEntry.getNewPath();
-            calculateMetrics(fileList, fileName, authName,diffEntry, diff);
-        }
-    }
+    	String fileName = null;
+    	switch (type) {
+    		case "MODIFY":
+    			fileName = diffEntry.getNewPath();
+    			break;
+    		case "ADD":
+    			fileName = diffEntry.getNewPath();
+    			break;
+    		case "DELETE":
+    			fileName = diffEntry.getOldPath();
+    			break;
+    		case "RENAME":
+    			fileName = diffEntry.getNewPath();
+    			break;
+    		}
+    		if (fileName != null && fileName.contains(ENDFILE)) {
+    			calculateMetrics(fileList, fileName, authName, diffEntry, diff);
+    		}
+    	}
+
+
     public static void analyzeDiffEntryMetrics(List<DiffEntry> diffs, List<JavaFile> fileList, String authName, DiffFormatter diff) {
-        for (DiffEntry diffEntry : diffs) {
-            String type = diffEntry.getChangeType().toString();
-            processDiffEntry(diffEntry, type, authName, fileList,  diff);
-        }
+    	diffs.forEach(diffEntry -> {
+    	String type = diffEntry.getChangeType().toString();
+    	processDiffEntry(diffEntry, type, authName, fileList, diff);
+    	});
     }
 
 
+
+//da rivedere
     public static void calculateMetrics(List<JavaFile> fileList, String fileName, String authName, DiffEntry diffEntry, DiffFormatter diff) {
         int locAdded = 0;
         int locDeleted = 0;
@@ -539,26 +553,27 @@ public class MainClass {
     }
 
     private static int calculateChurn(int locAdded, int locDeleted) {
-        return locAdded - locDeleted;
+        int churn = 0;
+        if (locAdded > locDeleted) {
+            churn = locAdded - locDeleted;
+        } else if (locDeleted > locAdded) {
+            churn = -(locDeleted - locAdded);
+        }
+        return churn;
     }
 
+
     private static void fileList(List<JavaFile> fileList, String fileName, String authName, int locAdded, int churn) {
-        JavaFile file = findFile(fileList, fileName);
-        if (file != null) {
-            existingFile(file, authName, locAdded, churn);
+        Optional<JavaFile> foundFile = fileList.stream().filter(file -> file.getName().equals(fileName)).findFirst();
+        
+        if (foundFile.isPresent()) {
+            existingFile(foundFile.get(), authName, locAdded, churn);
         } else {
             addNewFile(fileList, fileName, authName, locAdded, churn);
         }
     }
 
-    private static JavaFile findFile(List<JavaFile> fileList, String fileName) {
-        for (JavaFile file : fileList) {
-            if (file.getName().equals(fileName)) {
-                return file;
-            }
-        }
-        return null;
-    }
+
 
     private static void existingFile(JavaFile file, String authName,  int locAdded, int churn) {
         file.setNr(file.getNr() + 1);
@@ -621,48 +636,51 @@ public class MainClass {
 
 
     public static void metricsOfFilesByRelease(List<JavaFile> fileList, Release release) {
-        for (JavaFile javaFile : fileList) {
-            for (JavaFile fileInRelease : release.getFile()) {
-                if (javaFile.getName().equals(fileInRelease.getName())) {
-                    // aggiorna le metriche del file associato alla release con quelle del file corrente
-                    updateReleaseFileMetrics(javaFile, fileInRelease);
-                }
-            }
-        }
+        fileList.stream()
+                .filter(javaFile -> release.getFile().stream().anyMatch(file -> javaFile.getName().equals(file.getName())))
+                .forEach(javaFile -> release.getFile().stream()
+                        .filter(file -> javaFile.getName().equals(file.getName()))
+                        .findFirst()
+                        .ifPresent(file -> updateReleaseFileMetrics(javaFile, file)));
     }
 
-    private static void updateReleaseFileMetrics(JavaFile javaFile, JavaFile fileInRelease) {
-        updateLOCadded(javaFile, fileInRelease);
-        updateChurn(javaFile, fileInRelease);
-        updateNAuth(javaFile, fileInRelease);
+
+    private static void updateReleaseFileMetrics(JavaFile javaFile, JavaFile file) {
+        updateLOCadded(javaFile, file);
+        updateChurn(javaFile, file);
+        updateNAuth(javaFile, file);
         
     }
 
-    private static void updateLOCadded(JavaFile javaFile, JavaFile fileInRelease) {
+    private static void updateLOCadded(JavaFile javaFile, JavaFile file) {
         int locAdded = javaFile.getLOCadded();
-        fileInRelease.setLOCadded(fileInRelease.getLOCadded() + locAdded);
-        List<Integer> locAddedList = fileInRelease.getLocAddedList();
-        locAddedList.addAll(javaFile.getLocAddedList());
-        fileInRelease.setLocAddedList(locAddedList);
+        file.setLOCadded(file.getLOCadded() + locAdded);
+        file.getLocAddedList().addAll(javaFile.getLocAddedList());
     }
 
-    private static void updateChurn(JavaFile javaFile, JavaFile fileInRelease) {
-        int churn = javaFile.getChurn();
-        fileInRelease.setChurn(fileInRelease.getChurn() + churn);
-        List<Integer> churnList = fileInRelease.getChurnList();
-        churnList.addAll(javaFile.getChurnList());
-        fileInRelease.setChurnList(churnList);
+
+    private static void updateChurn(JavaFile javaFile, JavaFile file) {
+        int newChurn = javaFile.getChurn();
+        int currentChurn = file.getChurn();
+        file.setChurn(currentChurn + newChurn);
+        List<Integer> newChurnList = javaFile.getChurnList();
+        List<Integer> currentChurnList = file.getChurnList();
+        currentChurnList.addAll(newChurnList);
+        file.setChurnList(currentChurnList);
     }
 
-    private static void updateNAuth(JavaFile javaFile, JavaFile fileInRelease) {
+
+    private static void updateNAuth(JavaFile javaFile, JavaFile file) {
         int nr = javaFile.getNr();
-        fileInRelease.setNr(fileInRelease.getNr() + nr);
-        List<String> nAuth = javaFile.getNAuth();
-        List<String> nAuthList = fileInRelease.getNAuth();
-        nAuthList.addAll(nAuth);
-        nAuthList = nAuthList.stream().distinct().collect(Collectors.toList());
-        fileInRelease.setNAuth(nAuthList);
+        file.setNr(file.getNr() + nr);
+        
+        Set<String> nAuthSet = new HashSet<>(file.getNAuth());
+        nAuthSet.addAll(javaFile.getNAuth());
+        
+        List<String> nAuthList = new ArrayList<>(nAuthSet);
+        file.setNAuth(nAuthList);
     }
+
 
     
 
@@ -685,16 +703,19 @@ public class MainClass {
         
 
         public static List<RevCommit> getAllCommits(List<Release> releases, Path repositoryPath) throws GitAPIException, IOException {
-            List<RevCommit> commits = new ArrayList<>();
-            try (Git git = Git.open(repositoryPath.toFile())) {
-                Iterable<RevCommit> logEntries = git.log().all().call();
-                for (RevCommit commit : logEntries) {
-                    commits.add(commit);
-                    updateReleaseWithCommit(commit, releases);
+            try (Repository repository = new FileRepositoryBuilder().setGitDir(repositoryPath.resolve(".git").toFile()).build()) {
+                List<RevCommit> commits = new ArrayList<>();
+                try (Git git = new Git(repository)) {
+                    Iterable<RevCommit> logEntries = git.log().all().call();
+                    for (RevCommit commit : logEntries) {
+                        commits.add(commit);
+                        updateReleaseWithCommit(commit, releases);
+                    }
                 }
+                return commits;
             }
-            return commits;
         }
+
 
         private static void updateReleaseWithCommit(RevCommit commit, List<Release> releases) {
             Release release = getReleaseForCommit(commit, releases);
@@ -708,7 +729,7 @@ public class MainClass {
 
         private static Release getReleaseForCommit(RevCommit commit, List<Release> releaseList) {
             LocalDateTime commitDate = commit.getAuthorIdent().getWhen().toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime();
-            int releaseIndex = RetrieveJira.compareDateVersion(commitDate, releaseList);
+            int releaseIndex = afterBeforeDate(commitDate, releaseList);
             return releaseList.stream()
                               .filter(release -> release.getIndex() == releaseIndex)
                               .findFirst()
@@ -718,8 +739,14 @@ public class MainClass {
 
 
         private static Git initGitRepository(Path repoPath) throws IOException, IllegalStateException, GitAPIException {
-            return Git.init().setDirectory(repoPath.toFile()).call();
+            Git git = Git.open(repoPath.toFile());
+            Repository repo = git.getRepository();
+            if (!repo.getDirectory().exists()) {
+                Git.init().setDirectory(repoPath.toFile()).call();
+            }
+            return git;
         }
+//da rivedere
         private static void getJavaFilesForRelease(Git git, Release release) throws IOException {
             List<String> javaFileNames = new ArrayList<>();
             for (RevCommit commit : release.getCommitList()) {
@@ -745,16 +772,24 @@ public class MainClass {
 
 
         private static void setFileListIfNeeded(Release release, List<Release> releasesList) {
-            if (release.getFile().isEmpty() && !releasesList.isEmpty()) {
-                Release previousRelease = releasesList.get(releasesList.size() - 1);
-                release.setFileList(previousRelease.getFile());
+            if (!release.getFile().isEmpty()) {
+                return;
             }
+
+            int previousReleaseIndex = releasesList.size() - 2;
+            if (previousReleaseIndex < 0) {
+                return;
+            }
+
+            Release previousRelease = releasesList.get(previousReleaseIndex);
+            release.setFileList(previousRelease.getFile());
         }
+
 
        
 
 
-
+//da rivedere
         private static void addJavaFile(TreeWalk treeWalk, Release release, List<String> fileNameList) throws IOException {
             // Ottieni il nome del file
             String filename = treeWalk.getPathString();
@@ -781,18 +816,32 @@ public class MainClass {
             file.setLocAddedList(new ArrayList<>());
             file.setChurn(0);
             file.setChurnList(new ArrayList<>());
-            // Imposta la dimensione del file in linee di codice
-            int loc = MainClass.size(treeWalk, repository);
+
+            // Calcola la dimensione del file in linee di codice
+            int loc = 0;
+            try (InputStream stream = treeWalk.getObjectReader().open(treeWalk.getObjectId(0)).openStream()) {
+                BufferedReader reader = new BufferedReader(new InputStreamReader(stream));
+                while (reader.readLine() != null) {
+                    loc++;
+                }
+            }
             file.setLOC(loc);
         }
 
 
 
-        public static void checkBuggyness(List<Release> releaseList, List<Ticket> ticketList) throws IOException {
-            for (Ticket ticket : ticketList) {
-                verify(ticket, releaseList);
-            }
+
+        public static void isBuggy(List<Release> releases, List<Ticket> tickets) throws IOException {
+            tickets.forEach(ticket -> {
+				try {
+					verify(ticket, releases);
+				} catch (IOException e) {
+					
+					e.printStackTrace();
+				}
+			});
         }
+
 
         private static void verify(Ticket ticket, List<Release> releaseList) throws IOException {
             List<Integer> av = ticket.getAV();
@@ -843,18 +892,19 @@ public class MainClass {
 
 
         public static void diff(List<DiffEntry> diffs, List<Release> releasesList, List<Integer> av) {
-            for (DiffEntry diff : diffs) {
-                if (isBuggyDiffEntry(diff)) {
-                    String file = getFilePathFromDiffEntry(diff);
-                    setBuggyness(file, releasesList, av);
-                }
-            }
-        }
+        	  diffs.stream()
+        	       .filter(diff -> isBuggyDiffEntry(diff))
+        	       .map(diff -> getFilePathFromDiffEntry(diff))
+        	       .forEach(file -> setBuggyness(file, releasesList, av));
+        	}
+
 
         private static boolean isBuggyDiffEntry(DiffEntry diff) {
-            String type = diff.getChangeType().toString();
-            return diff.toString().contains(ENDFILE) && (type.equals("MODIFY") || type.equals(DELETE));
-        }
+        	  ChangeType changeType = diff.getChangeType();
+        	  String path = diff.getNewPath();
+        	  return (changeType == ChangeType.MODIFY || changeType == ChangeType.DELETE) && path.endsWith(ENDFILE);
+        	}
+
 
         private static String getFilePathFromDiffEntry(DiffEntry diff) {
             if (diff.getChangeType() == DiffEntry.ChangeType.DELETE || diff.getChangeType() == DiffEntry.ChangeType.RENAME) {
@@ -866,29 +916,17 @@ public class MainClass {
 
 
         public static void setBuggyness(String file, List<Release> releasesList, List<Integer> av) {
-            for (Release release : releasesList) {
-                setBuggynessForRelease(file, release, av);
-            }
+            releasesList.forEach(release -> setBuggynessForRelease(file, release, av));
         }
+
 
         private static void setBuggynessForRelease(String file, Release release, List<Integer> av) {
-            if (av.contains(release.getIndex())) {
-                setBuggynessForJavaFile(file, release.getFile());
-            }
+            release.getFile().stream()
+                .filter(javaFile -> javaFile.getName().equals(file))
+                .findFirst()
+                .ifPresent(javaFile -> javaFile.setBuggyness("true"));
         }
 
-        private static void setBuggynessForJavaFile(String file, List<JavaFile> javaFiles) {
-            for (JavaFile javaFile : javaFiles) {
-                if (javaFile.getName().equals(file)) {
-                    javaFile.setBuggyness("true");
-                }
-            }
-        }
-
-
-        /*Ticket mi dice che c'è un bug, questo bug ha toccato le release x,y,z. Ricordo che prendo tutti ticket risolti, ovvero so la release in qui li ho fixati.
-        Il ticket include dei commit, i quali vanno a modificare dei file.java. Li modifico perchè quei file=classi hanno dei problemi, e li hanno dalla release x.
-        Allora il file.java nelle release x,y,z avevano problemi, ovvero erano buggy.*/
 
         //utility di setup
         public static void setBuilder(String repo) throws IOException {
@@ -898,4 +936,22 @@ public class MainClass {
                     .setMustExist(true).build();
         
     }
+        
+        public static Integer afterBeforeDate(LocalDateTime date, List<Release> releases) {
+            int lastReleaseIndex = releases.size() - 1;
+            
+            for (int i = 0; i < releases.size(); i++) {
+                Release release = releases.get(i);
+                LocalDateTime releaseDate = release.getDate();
+                
+                if (date.isBefore(releaseDate) || date.isEqual(releaseDate)) {
+                    return release.getIndex();
+                } else if (i == lastReleaseIndex) {
+                    return release.getIndex();
+                }
+            }
+            
+            return null;
+        }
+
 }

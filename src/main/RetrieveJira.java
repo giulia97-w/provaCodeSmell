@@ -13,6 +13,8 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 public class RetrieveJira {
 
@@ -29,7 +31,7 @@ public class RetrieveJira {
     private static Map<LocalDateTime, String> releasesNames;
     private static Map<LocalDateTime, String> releasesID;
     private static List<LocalDateTime> releases;
-    private static final String RELEASEDATE = "releaseDate";    //added for resolve code smells
+    private static final String RELEASEDATE = "releaseDate";    
 
     private static String readAll(Reader rd) throws IOException {
         StringBuilder sb = new StringBuilder();
@@ -58,8 +60,6 @@ public class RetrieveJira {
 
        
 
-        // Fills the arraylist with releases dates and orders them
-        // Ignores releases with missing dates
         releases = new ArrayList<>();
         Integer i;
         String url = "https://issues.apache.org/jira/rest/api/2/project/" + projName;
@@ -106,24 +106,20 @@ public class RetrieveJira {
         }
 
 
-         
-   
-
-
-        return createReleaseList(releases, releasesNames);
+        return newList(releases, releasesNames);
 
     }
     
-    private static List<Release> createReleaseList(List<LocalDateTime> releases, Map<LocalDateTime, String> releasesNames) {
-        List<Release> releaseList = new ArrayList<>();
-        for (int j = 0; j < releases.size(); j++) {
-            LocalDateTime releaseDatetime = releases.get(j);
-            String releaseNameVersion = releasesNames.get(releaseDatetime);
-            Release release = new Release(j+1, releaseDatetime, releaseNameVersion);
-            releaseList.add(release);
-        }
-        return releaseList;
+    private static List<Release> newList(List<LocalDateTime> releases, Map<LocalDateTime, String> releasesNames) {
+        return IntStream.range(0, releases.size())
+                .mapToObj(i -> {
+                    LocalDateTime time = releases.get(i);
+                    String name = releasesNames.get(time);
+                    return new Release(i + 1, time, name);
+                })
+                .collect(Collectors.toList());
     }
+
 
 
 
@@ -177,7 +173,7 @@ public class RetrieveJira {
         } else {
             ticket.setIV(0);
         }
-        ticket.setOV(MainClass.beforeAfterDate(creationDate, releases));
+        ticket.setOV(MainClass.afterBeforeDate(creationDate, releases));
         return ticket;
     }
 
