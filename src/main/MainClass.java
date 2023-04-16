@@ -900,7 +900,7 @@ public class MainClass {
         	  diffs.stream()
         	       .filter(diff -> isBuggyDiffEntry(diff))
         	       .map(diff -> getFilePathFromDiffEntry(diff))
-        	       .forEach(file -> setBuggyness(file, releasesList, av));
+        	       .forEach(file -> setBuggyness(file, releasesList));
         	}
 
 
@@ -920,7 +920,7 @@ public class MainClass {
         }
 
 
-        public static void setBuggyness(String file, List<Release> releasesList, List<Integer> av) {
+        public static void setBuggyness(String file, List<Release> releasesList) {
             releasesList.forEach(release -> setBuggynessForRelease(file, release));
         }
 
