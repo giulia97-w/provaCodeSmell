@@ -862,7 +862,7 @@ public class MainClass {
                 })
                 .filter(Objects::nonNull)
 
-                .forEach(diffs -> diff(diffs, releaseList, av));
+                .forEach(diffs -> diff(diffs, releaseList));
         }
 
 
@@ -896,7 +896,7 @@ public class MainClass {
 
 
 
-        public static void diff(List<DiffEntry> diffs, List<Release> releasesList, List<Integer> av) {
+        public static void diff(List<DiffEntry> diffs, List<Release> releasesList) {
         	  diffs.stream()
         	       .filter(diff -> isBuggyDiffEntry(diff))
         	       .map(diff -> getFilePathFromDiffEntry(diff))
