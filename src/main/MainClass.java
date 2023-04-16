@@ -12,7 +12,9 @@ import org.eclipse.jgit.lib.ObjectId;
 import org.eclipse.jgit.lib.ObjectLoader;
 import org.eclipse.jgit.lib.ObjectReader;
 import org.eclipse.jgit.lib.Repository;
+import org.eclipse.jgit.patch.FileHeader;
 import org.eclipse.jgit.revwalk.RevCommit;
+import org.eclipse.jgit.revwalk.RevTree;
 import org.eclipse.jgit.revwalk.RevWalk;
 import org.eclipse.jgit.storage.file.FileRepositoryBuilder;
 import org.eclipse.jgit.treewalk.CanonicalTreeParser;
@@ -526,7 +528,7 @@ public class MainClass {
 		        fileName = null;
 		        break; }
     		if (fileName != null && fileName.contains(ENDFILE)) {
-    			calculateMetrics(fileList, fileName, authName, diffEntry, diff);
+    			churn(fileList, fileName, authName, diffEntry, diff);
     		}
     	}
 
@@ -541,27 +543,28 @@ public class MainClass {
 
 
 //da rivedere
-    public static void calculateMetrics(List<JavaFile> fileList, String fileName, String authName, DiffEntry diffEntry, DiffFormatter diff) {
-        int locAdded = 0;
-        int locDeleted = 0;
+    public static void churn(List<JavaFile> fileList, String fileName, String authName, DiffEntry diffEntry, DiffFormatter diff) {
         try {
-            for (Edit edit : diff.toFileHeader(diffEntry).toEditList()) {
-                locAdded += edit.getEndB() - edit.getBeginB();
-                locDeleted += edit.getEndA() - edit.getBeginA();
+            FileHeader fileHeader = diff.toFileHeader(diffEntry);
+            int addedLines = 0;
+            int deletedLines = 0;
+            for (Edit edit : fileHeader.toEditList()) {
+                addedLines += edit.getLengthB();
+                deletedLines += edit.getLengthA();
             }
+            int churn = calculateChurn(addedLines, deletedLines);
+            fileList(fileList, fileName, authName, addedLines, churn);
         } catch (IOException e) {
-            logger.log(Level.SEVERE, "Error in CalculateMetrics");
+            logger.log(Level.SEVERE, "Errore nel calcolo delle linee aggiunte ed eliminate", e);
         }
-        int churn = calculateChurn(locAdded, locDeleted);
-        fileList(fileList, fileName, authName,  locAdded, churn);
     }
 
-    private static int calculateChurn(int locAdded, int locDeleted) {
+    private static int calculateChurn(int addedLines, int deletedLines) {
         int churn = 0;
-        if (locAdded > locDeleted) {
-            churn = locAdded - locDeleted;
-        } else if (locDeleted > locAdded) {
-            churn = -(locDeleted - locAdded);
+        if (addedLines > deletedLines) {
+            churn = addedLines - deletedLines;
+        } else if (deletedLines > addedLines) {
+            churn = -(deletedLines - addedLines);
         }
         return churn;
     }
@@ -753,18 +756,31 @@ public class MainClass {
 //da rivedere
         private static void getJavaFilesForRelease(Git git, Release release) throws IOException {
             List<String> javaFileNames = new ArrayList<>();
+
             for (RevCommit commit : release.getCommitList()) {
                 ObjectId treeId = commit.getTree();
-                try (TreeWalk treeWalk = new TreeWalk(git.getRepository())) {
-                    treeWalk.reset(treeId);
-                    treeWalk.setRecursive(true);
+                try (RevWalk revWalk = new RevWalk(git.getRepository())) {
+                    RevTree tree = revWalk.parseTree(treeId);
 
-                    while (treeWalk.next()) {
-                        addJavaFile(treeWalk, release, javaFileNames);
+                    try (TreeWalk treeWalk = new TreeWalk(git.getRepository())) {
+                        treeWalk.addTree(tree);
+                        treeWalk.setRecursive(true);
+
+                        while (treeWalk.next()) {
+                            String path = treeWalk.getPathString();
+
+                            if (treeWalk.isSubtree() || !path.endsWith(".java")) {
+                                continue;
+                            }
+
+                            addJavaFile(treeWalk, release, javaFileNames);
+                        }
                     }
                 }
             }
         }
+
+
         public static void getJavaFiles(Path repoPath, List<Release> releasesList) throws IOException, IllegalStateException, GitAPIException {
             Git git = initGitRepository(repoPath);
 
