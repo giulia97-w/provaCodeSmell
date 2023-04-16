@@ -69,11 +69,11 @@ private static int movingWindows;
     private static float calculateP(List<Ticket> newProportionTicket) {
         float p = 0;
         for (Ticket t : newProportionTicket) {
-            float proportion = obtainingP(t);
-            proportion += proportion;
+            p += obtainingP(t);
         }
         return p;
     }
+
 
     private static int calculateAvgPFloor(float p) {
         return (int) Math.floor(p / movingWindows);

@@ -6,7 +6,7 @@ import java.util.stream.Collectors;
 
 
 
-//Questo codice definisce una classe chiamata JavaFile in Java, che ha variabili di istanza (o campi) che rappresentano diverse informazioni su un file Java, come il nome del file, la sua dimensione in linee di codice (LOC), il numero di volte che è stato modificato, il numero di volte in cui è stato introdotto un bug e il numero di volte in cui è stato corretto.
+//Questo codice definisce una classe chiamata JavaFile in Java, che ha variabili di istanza (o campi) che rappresentano diverse informazioni su un file Java, come il nome del file, la sua dimensione in linee di codice (linesOfCode), il numero di volte che è stato modificato, il numero di volte in cui è stato introdotto un bug e il numero di volte in cui è stato corretto.
 
 //La classe ha anche vari metodi getter e setter per accedere e impostare i valori di queste variabili di istanza. Inoltre, ci sono liste per tenere traccia di informazioni come i percorsi precedenti del file, le dimensioni dei set di modifiche e le dimensioni di churn (cioè il numero di linee di codice modificate in un dato periodo di tempo).
 
@@ -14,15 +14,15 @@ public class JavaFile {
 	private String nome;
     private List<String> oldPaths;
     private String buggy;
-    private Integer LOC; 
-    private Integer locTouched;
+    private Integer linesOfCode; 
+    private Integer linesOfCodeTouched;
     private Integer nr;
     private Integer nFix;
     private List<String> nAuth;
-    private Integer locAdded;
-    private List<Integer> locAddedList;
-    private Integer maxLocAdded;
-    private Integer avgLocAdded;
+    private Integer linesOfCodeAdded;
+    private List<Integer> linesOfCodeAddedList;
+    private Integer maxlinesOfCodeAdded;
+    private Integer avglinesOfCodeAdded;
     private Integer churn;
     private Integer maxChurn;
     private Integer avgChurn;
@@ -34,8 +34,8 @@ public class JavaFile {
     
     
     public void updateMetrics(JavaFile javaFile) {
-    	this.setLOCadded(this.getLOCadded() + javaFile.getLOCadded());
-    	this.getLocAddedList().addAll(javaFile.getLocAddedList());
+    	this.setlinesOfCodeadded(this.getlinesOfCodeadded() + javaFile.getlinesOfCodeadded());
+    	this.getlinesOfCodeAddedList().addAll(javaFile.getlinesOfCodeAddedList());
     	this.setChurn(this.getChurn() + javaFile.getChurn());
     	this.getChurnList().addAll(javaFile.getChurnList());
     	this.setNr(this.getNr() + javaFile.getNr());
@@ -66,16 +66,16 @@ public class JavaFile {
         return oldPaths;
     }
 
-    public Integer getLOC() {
-        return LOC;
+    public Integer getlinesOfCode() {
+        return linesOfCode;
     }
 
-    public Integer getLOCtouched() {
-        return locTouched;
+    public Integer getlinesOfCodetouched() {
+        return linesOfCodeTouched;
     }
 
-    public Integer getLOCadded() {
-        return locAdded;
+    public Integer getlinesOfCodeadded() {
+        return linesOfCodeAdded;
     }
 
     public Integer getChurn() {
@@ -86,12 +86,12 @@ public class JavaFile {
         return chgSetSize;
     }
 
-    public Integer getMaxlocAdded() {
-        return maxLocAdded;
+    public Integer getMaxlinesOfCodeAdded() {
+        return maxlinesOfCodeAdded;
     }
 
-    public Integer getAvglocAdded() {
-        return avgLocAdded;
+    public Integer getAvglinesOfCodeAdded() {
+        return avglinesOfCodeAdded;
     }
 
     public Integer getNr() {
@@ -113,8 +113,8 @@ public class JavaFile {
         return churnList;
     }
 
-    public List<Integer> getLocAddedList() {
-        return locAddedList;
+    public List<Integer> getlinesOfCodeAddedList() {
+        return linesOfCodeAddedList;
     }
     public List<String> getNAuth() {
         return nAuth;
@@ -129,16 +129,16 @@ public class JavaFile {
         this.buggy = bug;
     }
 
-    public void setLOC(Integer LOC) {
-        this.LOC = LOC;
+    public void setlinesOfCode(Integer linesOfCode) {
+        this.linesOfCode = linesOfCode;
     }
 
-    public void setLOCadded(Integer locAdded) {
-        this.locAdded = locAdded;
+    public void setlinesOfCodeadded(Integer linesOfCodeAdded) {
+        this.linesOfCodeAdded = linesOfCodeAdded;
     }
 
-    public void setLOCtouched(Integer locTouched) {
-        this.locTouched = locTouched;
+    public void setlinesOfCodetouched(Integer linesOfCodeTouched) {
+        this.linesOfCodeTouched = linesOfCodeTouched;
     }
 
     public void setChurn(Integer churn) {
@@ -153,12 +153,12 @@ public class JavaFile {
         this.nr = nr;
     }
 
-    public void setMaxLocAdded(Integer maxLOCAdded) {
-        this.maxLocAdded = maxLOCAdded;
+    public void setMaxlinesOfCodeAdded(Integer maxlinesOfCodeAdded) {
+        this.maxlinesOfCodeAdded = maxlinesOfCodeAdded;
     }
 
-    public void setAvgLOCAdded(Integer avgLOCAdded) {
-        this.avgLocAdded = avgLOCAdded;
+    public void setAvglinesOfCodeAdded(Integer avglinesOfCodeAdded) {
+        this.avglinesOfCodeAdded = avglinesOfCodeAdded;
     }
 
     public void setOldPaths(List<String> oldPaths) {
@@ -188,8 +188,8 @@ public class JavaFile {
     public void setChgSetSizeList(List<Integer> chgSetSizeList) {
         this.chgSetSizeList = chgSetSizeList;
     }
-    public void setLocAddedList(List<Integer> locAddedList) {
-        this.locAddedList = locAddedList;
+    public void setlinesOfCodeAddedList(List<Integer> linesOfCodeAddedList) {
+        this.linesOfCodeAddedList = linesOfCodeAddedList;
     }
     public void setChurnList(List<Integer> churnList) {
         this.churnList = churnList;

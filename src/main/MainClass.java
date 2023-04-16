@@ -55,9 +55,9 @@ public class MainClass {
 		StringBuilder sb = new StringBuilder();
 		sb.append(release.getIndex()).append(",");
 		sb.append(file.getName()).append(",");
-		sb.append(file.getLOC()).append(",");
-		sb.append(file.getLOCadded()).append(",");
-		writeMaxAndAvg(sb, file.getLocAddedList());
+		sb.append(file.getlinesOfCode()).append(",");
+		sb.append(file.getlinesOfCodeadded()).append(",");
+		writeMaxAndAvg(sb, file.getlinesOfCodeAddedList());
 		sb.append(",");
 		sb.append(file.getChurn()).append(",");
 		writeMaxAndAvg(sb, file.getChurnList());
@@ -406,7 +406,9 @@ public class MainClass {
     	
     	String name = "giuliamenichini";
     	String percorso = "/Users/" + name + "/";
-    	
+    	String uri = "/Users/giuliamenichini/eclipse-workspace/ISW2/bookkeeperDataset.csv";
+    	String uriArff = "/Users/giuliamenichini/eclipse-workspace/ISW2/bookkeeperDataset.arff";
+
         releasesListBookkeeper = RetrieveJira.getListRelease(PROJECT);
         releasesListOpenjpa = RetrieveJira.getListRelease(PROJECT1);
         commitListBookkeeper = getAllCommits(releasesListBookkeeper, Paths.get(percorso + PROJECT.toLowerCase()));
@@ -445,13 +447,13 @@ public class MainClass {
         createCSV(releasesListOpenjpa, PROJECT1.toLowerCase());
         logger.log(Level.INFO, "Creando il file .Arff");
         CSVLoader loader = new CSVLoader();
-        loader.setSource(new File("/Users/giuliamenichini/eclipse-workspace/ISW2/bookkeeperDataset.csv"));
+        loader.setSource(new File(uri));
         Instances data = loader.getDataSet();
 
         // Salva il file ARFF
         ArffSaver saver = new ArffSaver();
         saver.setInstances(data);
-        saver.setFile(new File("/Users/giuliamenichini/eclipse-workspace/ISW2/bookkeeperDataset.arff"));
+        saver.setFile(new File(uriArff));
         saver.writeBatch();
         logger.log(Level.INFO, "File .Arff creato");
 
@@ -514,13 +516,16 @@ public class MainClass {
     		case "ADD":
     			fileName = diffEntry.getNewPath();
     			break;
-    		case "DELETE":
+    		case DELETE:
     			fileName = diffEntry.getOldPath();
     			break;
     		case "RENAME":
     			fileName = diffEntry.getNewPath();
     			break;
-    		}
+    		
+		    default:
+		        fileName = null;
+		        break; }
     		if (fileName != null && fileName.contains(ENDFILE)) {
     			calculateMetrics(fileList, fileName, authName, diffEntry, diff);
     		}
@@ -580,7 +585,7 @@ public class MainClass {
         if (!file.getNAuth().contains(authName)) {
             file.getNAuth().add(authName);
         }
-        file.setLOCadded(file.getLOCadded() + locAdded);
+        file.setlinesOfCodeadded(file.getlinesOfCodeadded() + locAdded);
         addToLocAddedList(file, locAdded);
         
         file.setChurn(file.getChurn() + churn);
@@ -592,7 +597,7 @@ public class MainClass {
         applyMetricsNewFile(javaFile,  locAdded, churn, fileList, authName);
     }
     private static void addToLocAddedList(JavaFile file, int locAdded) {
-    	file.getLocAddedList().add(locAdded);
+    	file.getlinesOfCodeAddedList().add(locAdded);
     }
 
     private static void addToChurnList(JavaFile file, int churn) {
@@ -610,10 +615,10 @@ public class MainClass {
     }
     
     private static void setLocAdded(JavaFile javaFile, int locAdded) {
-        javaFile.setLOCadded(locAdded);
+        javaFile.setlinesOfCodeadded(locAdded);
         List<Integer> locAddedList = new ArrayList<>();
         locAddedList.add(locAdded);
-        javaFile.setLocAddedList(locAddedList);
+        javaFile.setlinesOfCodeAddedList(locAddedList);
     }
     private static void setChurn(JavaFile javaFile, int churn) {
         javaFile.setChurn(churn);
@@ -653,9 +658,9 @@ public class MainClass {
     }
 
     private static void updateLOCadded(JavaFile javaFile, JavaFile file) {
-        int locAdded = javaFile.getLOCadded();
-        file.setLOCadded(file.getLOCadded() + locAdded);
-        file.getLocAddedList().addAll(javaFile.getLocAddedList());
+        int locAdded = javaFile.getlinesOfCodeadded();
+        file.setlinesOfCodeadded(file.getlinesOfCodeadded() + locAdded);
+        file.getlinesOfCodeAddedList().addAll(javaFile.getlinesOfCodeAddedList());
     }
 
 
@@ -812,8 +817,8 @@ public class MainClass {
             file.setBuggyness("false");
             file.setNr(0);
             file.setNAuth(new ArrayList<>());
-            file.setLOCadded(0);
-            file.setLocAddedList(new ArrayList<>());
+            file.setlinesOfCodeadded(0);
+            file.setlinesOfCodeAddedList(new ArrayList<>());
             file.setChurn(0);
             file.setChurnList(new ArrayList<>());
 
@@ -825,7 +830,7 @@ public class MainClass {
                     loc++;
                 }
             }
-            file.setLOC(loc);
+            file.setlinesOfCode(loc);
         }
 
 
@@ -916,11 +921,11 @@ public class MainClass {
 
 
         public static void setBuggyness(String file, List<Release> releasesList, List<Integer> av) {
-            releasesList.forEach(release -> setBuggynessForRelease(file, release, av));
+            releasesList.forEach(release -> setBuggynessForRelease(file, release));
         }
 
 
-        private static void setBuggynessForRelease(String file, Release release, List<Integer> av) {
+        private static void setBuggynessForRelease(String file, Release release) {
             release.getFile().stream()
                 .filter(javaFile -> javaFile.getName().equals(file))
                 .findFirst()
@@ -943,13 +948,12 @@ public class MainClass {
             for (int i = 0; i < releases.size(); i++) {
                 Release release = releases.get(i);
                 LocalDateTime releaseDate = release.getDate();
-                
-                if (date.isBefore(releaseDate) || date.isEqual(releaseDate)) {
-                    return release.getIndex();
-                } else if (i == lastReleaseIndex) {
+                            
+                if (date.isBefore(releaseDate) || date.isEqual(releaseDate) || i == lastReleaseIndex) {
                     return release.getIndex();
                 }
             }
+
             
             return null;
         }

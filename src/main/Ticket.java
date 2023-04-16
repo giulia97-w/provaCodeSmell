@@ -18,7 +18,7 @@ public class Ticket {
     private LocalDateTime resolutionDate;
 
     private LocalDateTime creationDate;
-    private ArrayList<LocalDateTime> commitDateList;
+    private List<LocalDateTime> commitDateList;
     private List<RevCommit> commitList;
     private List<String> fileList;
 
@@ -70,9 +70,10 @@ public class Ticket {
         return iv;
     }
     
-    public ArrayList<LocalDateTime> getCommitDateList() {
+    public List<LocalDateTime> getCommitDateList() {
         return commitDateList;
     }
+
 
     public Integer getIndex() {
         return index;
@@ -112,9 +113,10 @@ public class Ticket {
     public void setIV(Integer iv) {
         this.iv = iv;
     }
-    public void setCommitDateList(ArrayList<LocalDateTime> commitDateList) {
+    public void setCommitDateList(List<LocalDateTime> commitDateList) {
         this.commitDateList = commitDateList;
     }
+
 
 
     public void setIndex(Integer index) {
