@@ -12,7 +12,6 @@ import org.eclipse.jgit.lib.ObjectId;
 import org.eclipse.jgit.lib.ObjectLoader;
 import org.eclipse.jgit.lib.ObjectReader;
 import org.eclipse.jgit.lib.Repository;
-import org.eclipse.jgit.revwalk.DepthWalk.Commit;
 import org.eclipse.jgit.revwalk.RevCommit;
 import org.eclipse.jgit.revwalk.RevWalk;
 import org.eclipse.jgit.storage.file.FileRepositoryBuilder;
@@ -849,7 +848,7 @@ public class MainClass {
 
 
         private static void verify(Ticket ticket, List<Release> releaseList) throws IOException {
-            List<Integer> av = ticket.getAV();
+            
             ticket.getCommitList().stream()
                 .map(commit -> {
                     try {
