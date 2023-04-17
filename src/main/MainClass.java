@@ -841,11 +841,11 @@ public class MainClass {
             int loc = 0;
             try (InputStream stream = treeWalk.getObjectReader().open(treeWalk.getObjectId(0)).openStream()) {
                 BufferedReader reader = new BufferedReader(new InputStreamReader(stream));
-                String line;
-                while ((line = reader.readLine()) != null) {
+                
+                while ((reader.readLine()) != null) {
                     // store the value of 'line' in a variable
                     loc++;
-                    String storedLine = line;
+                    
                     // do something with 'storedLine'
                 }
             }
