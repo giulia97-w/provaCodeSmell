@@ -32,6 +32,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -841,17 +842,20 @@ public class MainClass {
             file.setlinesOfCode(loc);
         }
 
-        private static int calculateLinesOfCode(TreeWalk treeWalk) throws IOException {
-            int loc = 0;
-            try (InputStream stream = treeWalk.getObjectReader().open(treeWalk.getObjectId(0)).openStream()) {
-                BufferedReader reader = new BufferedReader(new InputStreamReader(stream));
-                String line = null;
-                while ((line = reader.readLine()) != null) {
-                    loc++;
-                }
-            }
-            return loc;
+        @SuppressWarnings("resource")
+		private static int calculateLinesOfCode(TreeWalk treeWalk) throws IOException {
+            return new String(treeWalk.getObjectReader().open(treeWalk.getObjectId(0)).getBytes()).split("\n").length;
         }
+
+        
+        private static int calculateLinesOfCode1(TreeWalk treeWalk) throws IOException {
+            ObjectId objectId = treeWalk.getObjectId(0);
+            ObjectLoader loader = treeWalk.getObjectReader().open(objectId);
+            byte[] bytes = loader.getBytes();
+            String content = new String(bytes, StandardCharsets.UTF_8);
+            return content.split("\r\n|\r|\n").length;
+        }
+
 
 
 
