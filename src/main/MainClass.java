@@ -842,25 +842,12 @@ public class MainClass {
             file.setlinesOfCode(loc);
         }
 
-        @SuppressWarnings("resource")
-		private static int calculateLinesOfCode(TreeWalk treeWalk) throws IOException {
-            return new String(treeWalk.getObjectReader().open(treeWalk.getObjectId(0)).getBytes()).split("\n").length;
-        }
-
         
-        private static int calculateLinesOfCode1(TreeWalk treeWalk) throws IOException {
-            ObjectId objectId = treeWalk.getObjectId(0);
-            ObjectLoader loader = treeWalk.getObjectReader().open(objectId);
-            byte[] bytes = loader.getBytes();
-            String content = new String(bytes, StandardCharsets.UTF_8);
-            return content.split("\r\n|\r|\n").length;
+		private static int calculateLinesOfCode(TreeWalk treeWalk) throws IOException {
+        	try (InputStream stream = treeWalk.getObjectReader().open(treeWalk.getObjectId(0)).openStream()) {
+        	    return (int) new BufferedReader(new InputStreamReader(stream)).lines().count();
+        	}
         }
-
-
-
-
-
-
 
 
         public static void isBuggy(List<Release> releases, List<Ticket> tickets)  {
