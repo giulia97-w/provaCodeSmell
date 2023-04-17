@@ -1,4 +1,3 @@
-
 package main;
 
 import org.eclipse.jgit.api.Git;
@@ -341,7 +340,8 @@ public class MainClass {
             targetIV++;
         }
 
-        if (ticket.getIV() == ticket.getOV()) { // Se IV = OV allora non ci sono versioni AV
+        if (ticket.getIV().equals(ticket.getOV())) { 
+            
             ticket.getAV().clear();
         } else { // Altrimenti assegno ad AV tutte le release da IV ad OV
             ticket.getAV().clear();
@@ -407,8 +407,8 @@ public class MainClass {
     	
     	String name = "giuliamenichini";
     	String percorso = "/Users/" + name + "/";
-    	String uri = "/Users/giuliamenichini/eclipse-workspace/ISW2/bookkeeperDataset.csv";
-    	String uriArff = "/Users/giuliamenichini/eclipse-workspace/ISW2/bookkeeperDataset.arff";
+    	String uri = "/Users/giuliamenichini/eclipse-workspace/ISW2/openjpaDataset.csv";
+    	String uriArff = "/Users/giuliamenichini/eclipse-workspace/ISW2/openjpaDataset.arff";
 
         releasesListBookkeeper = RetrieveJira.getListRelease(PROJECT);
         releasesListOpenjpa = RetrieveJira.getListRelease(PROJECT1);
@@ -769,7 +769,7 @@ public class MainClass {
                         while (treeWalk.next()) {
                             String path = treeWalk.getPathString();
 
-                            if (treeWalk.isSubtree() || !path.endsWith(".java")) {
+                            if (treeWalk.isSubtree() || !path.endsWith(ENDFILE)) {
                                 continue;
                             }
 
@@ -841,17 +841,24 @@ public class MainClass {
             int loc = 0;
             try (InputStream stream = treeWalk.getObjectReader().open(treeWalk.getObjectId(0)).openStream()) {
                 BufferedReader reader = new BufferedReader(new InputStreamReader(stream));
-                while (reader.readLine() != null) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    // store the value of 'line' in a variable
                     loc++;
+                    String storedLine = line;
+                    // do something with 'storedLine'
                 }
             }
+
             file.setlinesOfCode(loc);
         }
 
 
 
 
-        public static void isBuggy(List<Release> releases, List<Ticket> tickets) throws IOException {
+
+
+        public static void isBuggy(List<Release> releases, List<Ticket> tickets)  {
             tickets.forEach(ticket -> {
 				try {
 					verify(ticket, releases);
