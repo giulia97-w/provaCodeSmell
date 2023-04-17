@@ -1,9 +1,5 @@
 package weka;
 
-
-
-
-
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -12,6 +8,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Random;
 import java.util.function.Supplier;
 import java.util.logging.Level;
@@ -34,9 +31,7 @@ import weka.core.Instances;
 import weka.core.converters.ConverterUtils.DataSource;
 import weka.filters.Filter;
 import weka.filters.supervised.attribute.AttributeSelection;
-import weka.filters.supervised.instance.Resample;
-import weka.filters.supervised.instance.SpreadSubsample;
-import weka.filters.supervised.instance.SMOTE;
+
 
 public class weka{ 
 
@@ -44,33 +39,26 @@ public class weka{
 	
 	public static void main(String[] args) throws Exception
 	{
-		String dataSetA = "/Users/giuliamenichini/eclipse-workspace/ISW2/bookkeeperDataset.arff";
-		computeAccuracy(dataSetA,"BOOKKEEPER");
+		String projectName = "BOOKKEEPER";
+		
+		String nomeFile = projectName.toLowerCase() + "Dataset.csv" ;
+		String progetto =  " relativo al progetto " + projectName;
+		String path = "/Users/giuliamenichini/eclipse-workspace/ISW2/" + nomeFile ;
+	    logger.info("Caricando dataset: " + nomeFile + progetto);
+
+		computeAccuracy(path,"BOOKKEEPER");
 		
 
 	}
 
-	//calcolo probabilità di train rispetto a train + test
-	private static double  calculateTrainingTestingRatio(Instances train, Instances test) {
-	    return (train.size()) / ((double) train.size() + (double) test.size());
-	}
-
-	private static int calculateModuleNumber(String projName) {
-	    switch (projName) {
-	        case "BOOKKEEPER":
-	            return 6;
-	        case "OPENJPA":
-	            return 16;
-	        default:
-	            return 1;
-	    }
+	private static double calculateTrainingTestingRatio(Instances train, Instances test) {
+	    double trainSize = train.numInstances();
+	    double testSize = test.numInstances();
+	    return trainSize / (trainSize + testSize);
 	}
 
 
-	private static int calculateReleaseNumber( int version, int mod) {
-
-	    return (version % mod) + 1;
-	}
+	
 
 	private static double calculateBuggy(Instances instances) {
 
@@ -79,7 +67,7 @@ public class weka{
 
 	public static Measure createMeasureObject(Instances train, Instances test, String[] s, String projName, int version) {
 	    Measure m = new Measure(projName);
-	    m.setReleaseNumber(calculateReleaseNumber(version, calculateModuleNumber(projName)));
+	    m.setReleaseNumber(version + 1);
 	    m.setClassifier(s[0]);
 	    m.setBalancingMethod(s[1]);
 	    m.setFeatureSelectionMethod(s[2]);
@@ -113,33 +101,56 @@ public class weka{
 	    
 	}
 	//da rivedere
+	public Instances[] createTrainingAndTestSet(List<Instances> sets, int currentIndex) {
+	    Instances testSet = new Instances(sets.get(currentIndex));
+	    Instances trainingSet = createTrainingSet(sets, currentIndex);
+	    trainingSet.setClassIndex(trainingSet.numAttributes() - 1);
+	    testSet.setClassIndex(testSet.numAttributes() - 1);
+	    Instances[] trainingAndTestSet = {trainingSet, testSet};
+	    return trainingAndTestSet;
+	}
+
+	public Instances[] applyFeatureSelection(String featureSelection, Instances trainingSet, Instances testSet) throws Exception {
+	    Instances filteredTrainingSet = trainingSet;
+	    Instances filteredTestSet = testSet;
+	    switch(featureSelection) {
+	        case "BEST FIRST":
+	            List<Instances> filteredSets = featureSelection(trainingSet, testSet);
+	            filteredTrainingSet = filteredSets.get(1);
+	            filteredTestSet = filteredSets.get(0);
+	            break;
+	        default:
+	            break;
+	    }
+	    Instances[] filteredTrainingAndTestSet = {filteredTrainingSet, filteredTestSet};
+	    return filteredTrainingAndTestSet;
+	}
+
+	public Evaluation trainAndEvaluateModel(String balancing, String classifier, String costEvaluation, Instances trainingSet, Instances testSet) throws Exception {
+	    Classifier classifierInstance = generateClassifier(classifier);
+	    switch(balancing) {
+	        case "NO":
+	            break;
+	        default:
+	            classifierInstance = balancing(classifierInstance, balancing, trainingSet);
+	            break;
+	    }
+	    Evaluation evaluation = evaluateModel(costEvaluation, classifierInstance, trainingSet, testSet);
+	    return evaluation;
+	}
+	
 	public void walkForward(String featureSelection, String balancing, String costEvaluation, String classifier, List<Instances> sets, List<Measure> measures, String projectName) throws Exception {
 	    int version = 0;
 	    for (int i = 1; i < sets.size(); i++) {
-	        Instances testSet = new Instances(sets.get(i));
-	        Instances trainingSet = createTrainingSet(sets, i);
-	        trainingSet.setClassIndex(trainingSet.numAttributes() - 1);
-	        testSet.setClassIndex(testSet.numAttributes() - 1);
-	        switch(featureSelection) {
-	            case "BEST FIRST":
-	                List<Instances> filteredSets = featureSelection(trainingSet, testSet);
-	                trainingSet = filteredSets.get(1);
-	                testSet = filteredSets.get(0);
-	                break;
-	            default:
-	                
-	                break;
-	        }
-	        Classifier classifierInstance = generateClassifier(classifier);
-	        switch(balancing) {
-	            case "NO":
-	                //do nothing
-	                break;
-	            default:
-	                classifierInstance = balancing(classifierInstance, balancing, trainingSet);
-	                break;
-	        }
-	        Evaluation evaluation = evaluateModel(costEvaluation, classifierInstance, trainingSet, testSet);
+	        Instances[] trainingAndTestSet = createTrainingAndTestSet(sets, i);
+	        Instances trainingSet = trainingAndTestSet[0];
+	        Instances testSet = trainingAndTestSet[1];
+	        
+	        Instances[] filteredTrainingAndTestSet = applyFeatureSelection(featureSelection, trainingSet, testSet);
+	        trainingSet = filteredTrainingAndTestSet[0];
+	        testSet = filteredTrainingAndTestSet[1];
+	        Evaluation evaluation = trainAndEvaluateModel(balancing, classifier, costEvaluation, trainingSet, testSet);
+	        
 	        String[] labels = {classifier, balancing, featureSelection, costEvaluation};
 	        if (evaluation == null) {
 	            logger.log(Level.INFO, "Errore valutando il modello");
@@ -152,14 +163,21 @@ public class weka{
 	}
 
 
-//da rivedere
+
+
 	private Instances createTrainingSet(List<Instances> sets, int endIndex) {
-	    Instances train = new Instances(sets.get(0));
-	    for (int i = 1; i < endIndex; i++) {
-	        train.addAll(sets.get(i));
-	    }
-	    return train;
+	    Optional<Instances> merged = sets.stream()
+	            .limit(endIndex)
+	            .reduce((train, next) -> {
+	                Instances mergedSet = new Instances(train, 0);
+	                for (Instance instance : next) {
+	                    mergedSet.add(instance);
+	                }
+	                return mergedSet;
+	            });
+	    return merged.orElse(new Instances(sets.get(0), 0));
 	}
+
 
 
 	public static List<Instances> applyFeatureSelection(AttributeSelection filter, Instances train, Instances test) throws Exception {
@@ -177,50 +195,6 @@ public class weka{
 		}
 
 
-
-	
-	private static Filter getBalancingFilter(String balancing, Instances train) throws Exception {
-		Filter filter = null;
-		switch (balancing) {
-			case "OVERSAMPLING":
-				filter = getResampleFilter(train, false, 0.1, 2 * getSampleSizePerc(train), new String[]{"-B", "1.0", "-Z", "130.3"});
-			break;
-			case "UNDERSAMPLING":
-				filter = getSpreadSubsampleFilter(train, new String[]{"-M", "1.0"});
-			break;
-			case "SMOTE":
-				filter = getSMOTEFilter(train);
-			break;
-			}
-			if (filter != null) {
-				filter.setInputFormat(train);
-			}
-			return filter;
-		}
-
-	private static Resample getResampleFilter(Instances data, boolean noReplacement, double biasToUniformClass, double sampleSizePercent, String[] options) throws Exception {
-		return new Resample() {private static final long serialVersionUID = 1L;
-
-		{
-		setNoReplacement(noReplacement);
-		setBiasToUniformClass(biasToUniformClass);
-		setSampleSizePercent(sampleSizePercent);
-		setOptions(options);
-		}};
-	}
-		
-
-	private static SpreadSubsample getSpreadSubsampleFilter(Instances data, String[] options) throws Exception {
-		return new SpreadSubsample() {private static final long serialVersionUID = 1L;
-
-		{
-		setOptions(options);
-		}};
-		}
-
-	private static SMOTE getSMOTEFilter(Instances data) throws Exception {
-		return new SMOTE();
-		}
 
 
 
@@ -282,13 +256,6 @@ public class weka{
 
 
 
-	private static double getSampleSizePerc(Instances train) {
-	    double numOfBuggy = numOfBuggy(train);
-	    double nonnumOfBuggy = 1 - numOfBuggy;
-	    double sampleSizePerc = Math.max(numOfBuggy, nonnumOfBuggy) * 100;
-	    return sampleSizePerc;
-	}
-
 
 	
 	private static double numOfBuggy(Instances train) {
@@ -348,35 +315,56 @@ public class weka{
 	
 
 //da rivedere
-	//Metodo di controllo dell'applicativo
+	
 	public static void computeAccuracy(String datasetPath, String projName) throws Exception {
-		logger.info("Creando il file di output");
-		ArrayList<Instances> sets = getSets(datasetPath);
-		List<String> featureSelection = Arrays.asList("NO", "BEST FIRST");
-		List<String> balancing = Arrays.asList("NO", "UNDERSAMPLING", "OVERSAMPLING", "SMOTE");
-		List<String> costEvaluation = Arrays.asList("NO", "SENSITIVE THRESHOLD", "SENSITIVE LEARNING");
-		List<String> classifiers = Arrays.asList("RANDOM FOREST", "NAIVE BAYES", "IBK");
-		ArrayList<Measure> measures = new ArrayList<>();
-		weka v = new weka();
-		
-		for (int i = 0; i < featureSelection.size(); i++) {
-		    String f = featureSelection.get(i);
-		    for (int j = 0; j < balancing.size(); j++) {
-		        String b = balancing.get(j);
-		        for (int k = 0; k < costEvaluation.size(); k++) {
-		            String e = costEvaluation.get(k);
-		            for (int l = 0; l < classifiers.size(); l++) {
-		                String c = classifiers.get(l);
-		                v.walkForward(f, b, e, c, sets, measures, projName);
-		            }
-		        }
-		    }
-		}
-		printMeasures(projName, measures);
-		logger.info("File creato!");
+	    logger.info("Creando il file di output");
+	    ArrayList<Instances> sets = getSets(datasetPath);
+	    List<List<String>> modelConfigs = getModelConfigurations();
+	    ArrayList<Measure> measures = computeMeasures(modelConfigs, sets, projName);
+	    printMeasures(projName, measures);
+	    logger.info("File creato!");
+	}
+	public static List<List<String>> getModelConfigurations() {
+	    List<String> featureSelection = Arrays.asList("NO", "BEST FIRST");
+	    List<String> balancing = Arrays.asList("NO", "UNDERSAMPLING", "OVERSAMPLING", "SMOTE");
+	    List<String> costEvaluation = Arrays.asList("NO", "SENSITIVE THRESHOLD", "SENSITIVE LEARNING");
+	    List<String> classifiers = Arrays.asList("RANDOM FOREST", "NAIVE BAYES", "IBK");
+	    List<List<String>> modelConfigs = new ArrayList<>();
+
+	    for (String a : featureSelection) {
+	        for (String b : balancing) {
+	            for (String c : costEvaluation) {
+	                for (String d : classifiers) {
+	                    List<String> config = new ArrayList<>();
+	                    config.add(a);
+	                    config.add(b);
+	                    config.add(c);
+	                    config.add(d);
+	                    modelConfigs.add(config);
+	                }
+	            }
+	        }
+	    }
+
+	    return modelConfigs;
+	}
+	public static ArrayList<Measure> computeMeasures(List<List<String>> modelConfigs, ArrayList<Instances> sets, String projName) throws Exception {
+	    ArrayList<Measure> measures = new ArrayList<>();
+	    weka v = new weka();
+
+	    for (List<String> config : modelConfigs) {
+	        String a = config.get(0);
+	        String b = config.get(1);
+	        String c = config.get(2);
+	        String d = config.get(3);
+
+	        v.walkForward(a, b, c, d, sets, measures, projName);
+	    }
+
+	    return measures;
 	}
 	
-	//Ottengo una lista dove ogni elemento è l'insieme delle istanze divise per versione
+	
 	private static ArrayList<Instances> getSets(String datasetPath) throws Exception {
 	    Instances data = DataSource.read(datasetPath);
 	    data.sort(0);
