@@ -836,22 +836,23 @@ public class MainClass {
             file.setlinesOfCodeAddedList(new ArrayList<>());
             file.setChurn(0);
             file.setChurnList(new ArrayList<>());
-
             // Calcola la dimensione del file in linee di codice
+            int loc = calculateLinesOfCode(treeWalk);
+            file.setlinesOfCode(loc);
+        }
+
+        private static int calculateLinesOfCode(TreeWalk treeWalk) throws IOException {
             int loc = 0;
             try (InputStream stream = treeWalk.getObjectReader().open(treeWalk.getObjectId(0)).openStream()) {
                 BufferedReader reader = new BufferedReader(new InputStreamReader(stream));
-                
-                while ((reader.readLine()) != null) {
-                    // store the value of 'line' in a variable
+                String line = null;
+                while ((line = reader.readLine()) != null) {
                     loc++;
-                    
-                    // do something with 'storedLine'
                 }
             }
-
-            file.setlinesOfCode(loc);
+            return loc;
         }
+
 
 
 
