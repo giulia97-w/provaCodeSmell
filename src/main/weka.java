@@ -1,9 +1,6 @@
 package weka;
 
 
-
-
-
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -21,6 +18,8 @@ import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import weka.attributeSelection.ASEvaluation;
+import weka.attributeSelection.ASSearch;
 import weka.attributeSelection.BestFirst;
 import weka.attributeSelection.CfsSubsetEval;
 import weka.classifiers.Classifier;
@@ -41,19 +40,20 @@ import weka.filters.supervised.instance.SpreadSubsample;
 import weka.filters.supervised.instance.SMOTE;
 
 public class weka{ 
+	static String projectName = "BOOKKEEPER"; //or OPENJPA
 
 	private static final Logger logger =  Logger.getLogger(weka.class.getName());
 	
 	public static void main(String[] args) throws Exception
 	{
-		String projectName = "BOOKKEEPER"; //or OPENJPA
+		String projectName1 = "BOOKKEEPER"; //or OPENJPA
 		
-		String nomeFile = projectName.toLowerCase() + "Dataset.csv" ;
-		String progetto =  " relativo al progetto " + projectName;
+		String nomeFile = projectName1.toLowerCase() + "Dataset.csv" ;
+		String progetto =  " relativo al progetto " + projectName1;
 		String path = "/Users/giuliamenichini/eclipse-workspace/ISW2/" + nomeFile ;
 	    logger.info("Caricando dataset: " + nomeFile + progetto);
-
-		createFile(path,"BOOKKEEPER");
+	    
+		createFile(path);
 		
 
 	}
@@ -78,8 +78,8 @@ public class weka{
 	}
 	// metodo per ipostare nome del progetto, release, classificatore utilizzato, bilanciamento, featureSelection
 	//sensitivity, defectiveInTraining, defectiveInTesting, trainPercentage, testPercentage
-	public static Measure createMeasureObject(Instances train, Instances test, String[] s, String projName, int version) {
-	    Measure m = new Measure(projName);
+	public static Measure createMeasureObject(Instances train, Instances test, String[] s,  int version) {
+	    Measure m = new Measure(projectName);
 	    m.setReleaseNumber(version + 1);
 
 	    String[] fields = {"setClassifier", "setBalancingMethod", "setFeatureSelectionMethod", "setSensitivityMethod"};
@@ -101,8 +101,8 @@ public class weka{
 
 
 	//prende in input le info e setta le metriche di valutazione con tp,fp,fn,tn
-	private static void evaluateAndAddMeasure(Evaluation e, Instances train, Instances test, String[] s, String projName, List<Measure> measures, int version) {
-	    Measure measure = createMeasureObject(train, test, s, projName, version);
+	private static void evaluateAndAddMeasure(Evaluation e, Instances train, Instances test, String[] s,  List<Measure> measures, int version) {
+	    Measure measure = createMeasureObject(train, test, s,  version);
 	    String[] evaluationMetrics = {"auc", "kappa", "recall", "precision", "trueNegatives", "truePositives", "falseNegatives", "falsePositives"};
 	    double[] evaluationValues = {e.areaUnderROC(1), e.kappa(), e.recall(1), e.precision(1), e.numTrueNegatives(1), e.numTruePositives(1), e.numFalseNegatives(1), e.numFalsePositives(1)};
 	    for (int i = 0; i < evaluationMetrics.length; i++) {
@@ -148,12 +148,16 @@ public class weka{
 	//BestFirst ricerca il sottoinsieme migliore utilizzando una strategia di ricerca forward
 	//la ricerca è indipendente dall'algoritmo di addestramento
 	public static AttributeSelection createFeatureSelectionFilter() throws Exception {
-	    AttributeSelection filter = new AttributeSelection();
-	    filter.setEvaluator(new CfsSubsetEval());
-	    filter.setSearch(new BestFirst());
-	    return filter;
-	    
+	    return createFilter(new CfsSubsetEval(), new BestFirst());
 	}
+
+	private static AttributeSelection createFilter(ASEvaluation evaluator, ASSearch search) {
+	    AttributeSelection filter = new AttributeSelection();
+	    filter.setEvaluator(evaluator);
+	    filter.setSearch(search);
+	    return filter;
+	}
+
 	//creazione set di addestramento e di test . Il set di test è creato a partire dall'insieme corrente mentre il train
 	//tutte meno una infine si impostano gli attributi.
 	public Instances[] createTrainingAndTestSet(List<Instances> sets, int currentIndex) {
@@ -195,25 +199,18 @@ public class weka{
 	}
 	//Iterazione di un loop su i dati di train e test con l'applicazione di FS, balancing e classification. 
 	//Per ogni iterazione i dati vengono salvati e si va avanti per ogni versione
-	public void walkForward(String featureSelection, String balancing, String costEvaluation, String classifier, List<Instances> sets, List<Measure> measures, String projectName) throws Exception {
-	    int version = 0;
+	public void walkForward(String featureSelection, String balancing, String costEvaluation, String classifier, List<Instances> sets, List<Measure> measures) throws Exception {
 	    for (int i = 1; i < sets.size(); i++) {
 	        Instances[] trainingAndTestSet = createTrainingAndTestSet(sets, i);
-	        Instances trainingSet = trainingAndTestSet[0];
-	        Instances testSet = trainingAndTestSet[1];
-	        
-	        Instances[] filteredTrainingAndTestSet = applyFeatureSelection(featureSelection, trainingSet, testSet);
-	        trainingSet = filteredTrainingAndTestSet[0];
-	        testSet = filteredTrainingAndTestSet[1];
-	        Evaluation evaluation = trainAndEvaluateModel(balancing, classifier, costEvaluation, trainingSet, testSet);
-	        
+	        Instances[] filteredTrainingAndTestSet = applyFeatureSelection(featureSelection, trainingAndTestSet[0], trainingAndTestSet[1]);
+	        Evaluation evaluation = trainAndEvaluateModel(balancing, classifier, costEvaluation, filteredTrainingAndTestSet[0], filteredTrainingAndTestSet[1]);
+
 	        String[] labels = {classifier, balancing, featureSelection, costEvaluation};
 	        if (evaluation == null) {
 	            logger.log(Level.INFO, "Errore valutando il modello");
 	        } else {
-	            createMeasureObject(trainingSet, testSet, labels, projectName, version);
-	            evaluateAndAddMeasure(evaluation, trainingSet, testSet, labels, projectName, measures, version);
-	            version++;
+	            createMeasureObject(filteredTrainingAndTestSet[0], filteredTrainingAndTestSet[1], labels,  i - 1);
+	            evaluateAndAddMeasure(evaluation, filteredTrainingAndTestSet[0], filteredTrainingAndTestSet[1], labels, measures, i - 1);
 	        }
 	    }
 	}
@@ -438,12 +435,12 @@ public class weka{
 
 
 	//Metodo di controllo dell'applicativo
-	public static void createFile(String datasetPath, String projName) throws Exception {
+	public static void createFile(String datasetPath) throws Exception {
 	    logger.info("Creando il file di output");
 	    ArrayList<Instances> sets = ordering(datasetPath);
 	    List<List<String>> modelConfigs = getModelConfigurations();
-	    ArrayList<Measure> measures = computeMeasures(modelConfigs, sets, projName);
-	    toCSV(projName, measures);
+	    ArrayList<Measure> measures = computeMeasures(modelConfigs, sets);
+	    toCSV( measures);
 	    logger.info("File creato!");
 	}
 	public static List<List<String>> getModelConfigurations() {
@@ -457,7 +454,7 @@ public class weka{
 
 
 	    
-	public static ArrayList<Measure> computeMeasures(List<List<String>> modelConfigs, ArrayList<Instances> sets, String projName) throws Exception {
+	public static ArrayList<Measure> computeMeasures(List<List<String>> modelConfigs, ArrayList<Instances> sets) throws Exception {
 	    ArrayList<Measure> measures = new ArrayList<>();
 	    weka v = new weka();
 
@@ -467,7 +464,7 @@ public class weka{
 	        String c = config.get(2);
 	        String d = config.get(3);
 
-	        v.walkForward(a, b, c, d, sets, measures, projName);
+	        v.walkForward(a, b, c, d, sets, measures);
 	    }
 
 	    return measures;
@@ -501,8 +498,8 @@ public class weka{
 
 
 	
-	public static void toCSV(String project, List<Measure> measures) {
-	    String outName = project + "Output.csv";
+	public static void toCSV(List<Measure> measures) {
+	    String outName = projectName + "Output.csv";
 	    
 	    try (PrintWriter writer = new PrintWriter(new FileWriter(outName))) {
 	        writer.println("Dataset,#TrainingRelease,%Training,%Defective in training,%Defective in testing,Classifier,Balancing,Feature Selection,Sensitivity,TP,FP,TN,FN,Precision,Recall,AUC,Kappa");
