@@ -7,6 +7,7 @@ package weka;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -80,10 +81,17 @@ public class weka{
 	public static Measure createMeasureObject(Instances train, Instances test, String[] s, String projName, int version) {
 	    Measure m = new Measure(projName);
 	    m.setReleaseNumber(version + 1);
-	    m.setClassifier(s[0]);
-	    m.setBalancingMethod(s[1]);
-	    m.setFeatureSelectionMethod(s[2]);
-	    m.setSensitivityMethod(s[3]);
+
+	    String[] fields = {"setClassifier", "setBalancingMethod", "setFeatureSelectionMethod", "setSensitivityMethod"};
+	    for (int i = 0; i < fields.length; i++) {
+	        try {
+	            Method method = Measure.class.getMethod(fields[i], String.class);
+	            method.invoke(m, s[i]);
+	        } catch (Exception e) {
+	            e.printStackTrace();
+	        }
+	    }
+
 	    m.setTrainingTestingRatio(calculateTrainingTestingRatio(train, test));
 	    m.setBuggyPercentageInTrainingSet(calculateBuggy(train));
 	    m.setBuggyPercentageInTestingSet(calculateBuggy(test));
@@ -91,19 +99,47 @@ public class weka{
 	}
 
 
+
 	//prende in input le info e setta le metriche di valutazione con tp,fp,fn,tn
 	private static void evaluateAndAddMeasure(Evaluation e, Instances train, Instances test, String[] s, String projName, List<Measure> measures, int version) {
 	    Measure measure = createMeasureObject(train, test, s, projName, version);
-	    measure.setAuc(e.areaUnderROC(1));
-	    measure.setKappa(e.kappa());
-	    measure.setRecall(e.recall(1));
-	    measure.setPrecision(e.precision(1));
-	    measure.setTrueNegatives((int) e.numTrueNegatives(1));
-	    measure.setTruePositives((int) e.numTruePositives(1));
-	    measure.setFalseNegatives((int) e.numFalseNegatives(1));
-	    measure.setFalsePositives((int) e.numFalsePositives(1));
+	    String[] evaluationMetrics = {"auc", "kappa", "recall", "precision", "trueNegatives", "truePositives", "falseNegatives", "falsePositives"};
+	    double[] evaluationValues = {e.areaUnderROC(1), e.kappa(), e.recall(1), e.precision(1), e.numTrueNegatives(1), e.numTruePositives(1), e.numFalseNegatives(1), e.numFalsePositives(1)};
+	    for (int i = 0; i < evaluationMetrics.length; i++) {
+	        String metric = evaluationMetrics[i];
+	        double value = evaluationValues[i];
+	        switch (metric) {
+	            case "auc":
+	                measure.setAuc(value);
+	                break;
+	            case "kappa":
+	                measure.setKappa(value);
+	                break;
+	            case "recall":
+	                measure.setRecall(value);
+	                break;
+	            case "precision":
+	                measure.setPrecision(value);
+	                break;
+	            case "trueNegatives":
+	                measure.setTrueNegatives((int) value);
+	                break;
+	            case "truePositives":
+	                measure.setTruePositives((int) value);
+	                break;
+	            case "falseNegatives":
+	                measure.setFalseNegatives((int) value);
+	                break;
+	            case "falsePositives":
+	                measure.setFalsePositives((int) value);
+	                break;
+	            default:
+	                break;
+	        }
+	    }
 	    measures.add(measure);
 	}
+
 
 
 	
