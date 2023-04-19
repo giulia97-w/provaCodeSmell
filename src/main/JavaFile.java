@@ -74,8 +74,12 @@ public class JavaFile {
         return linesOfCodeTouched;
     }
 
-    public Integer getlinesOfCodeadded() {
-        return linesOfCodeAdded;
+    public int getlinesOfCodeadded() {
+        if (linesOfCodeAdded == null) {
+            return 0; // o un altro valore di default
+        } else {
+            return linesOfCodeAdded.intValue();
+        }
     }
 
     public Integer getChurn() {

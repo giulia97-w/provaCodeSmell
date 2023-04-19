@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+import org.eclipse.jgit.lib.Repository;
 import org.eclipse.jgit.revwalk.RevCommit;
 import org.json.JSONArray;
 public class Release {
@@ -18,6 +19,7 @@ public class Release {
     private String rel;
     private List<RevCommit> commitList;
     private List <JavaFile> file;
+	private Repository repository;
 
     public Release(Integer index, LocalDateTime date, String rel)
     {
@@ -94,6 +96,10 @@ public class Release {
     public void setFileList(List<JavaFile> fileList) {
         this.file = fileList;
     }
+    public Repository getRepository() {
+        return this.repository;
+    }
+
     
     static List<Integer> getAV(JSONArray versions, List<Release> releases) {
         List<Integer> listaAV = new ArrayList<>();

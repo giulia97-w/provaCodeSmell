@@ -32,53 +32,71 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 
 public class MainClass {
 	
 	
 	
-	
+	private static int movingWindows;
+
 	private static final String ENDFILE = ".java";
 	private static final String DELETE = "DELETE";
 	
 	private static void update(BufferedWriter fileWriter, Release release, JavaFile file) throws IOException {
-		StringBuilder sb = new StringBuilder();
-		sb.append(release.getIndex()).append(",");
-		sb.append(file.getName()).append(",");
-		sb.append(file.getlinesOfCode()).append(",");
-		sb.append(file.getlinesOfCodeadded()).append(",");
-		writeMaxAndAvg(sb, file.getlinesOfCodeAddedList());
-		sb.append(",");
-		sb.append(file.getChurn()).append(",");
-		writeMaxAndAvg(sb, file.getChurnList());
-		sb.append(",");
-		sb.append(file.getNr()).append(",");
-		sb.append(file.getNAuth().size()).append(",");
-		sb.append(file.getBuggyness()).append("\n");
-		fileWriter.write(sb.toString());
-		fileWriter.flush();
-		}
+	    StringBuilder sb = new StringBuilder();
+	    sb.append(release.getIndex()).append(",");
+	    sb.append(file.getName()).append(",");
+	    sb.append(file.getlinesOfCode()).append(",");
+	    sb.append(file.getlinesOfCodeadded()).append(",");
 
-	private static void writeMaxAndAvg(StringBuilder sb, List<Integer> list) {
-		if (list.isEmpty()) {
-			sb.append("0,0");
-			return;
-		}
-		int max = Collections.max(list);
-			double avg = list.stream().mapToInt(Integer::intValue).average().orElse(0.0);
-			sb.append(max).append(",").append((int)avg);
-		}
+	    // ciclo for per scrivere i valori massimi e medi di linesOfCodeAddedList
+	    List<Integer> linesOfCodeAddedList = file.getlinesOfCodeAddedList();
+	    int maxLOCAdded = 0;
+	    double avgLOCAdded = 0;
+	    for (int i = 0; i < linesOfCodeAddedList.size(); i++) {
+	        int locAdded = linesOfCodeAddedList.get(i);
+	        maxLOCAdded = Math.max(maxLOCAdded, locAdded);
+	        avgLOCAdded += locAdded;
+	    }
+	    avgLOCAdded /= linesOfCodeAddedList.size();
+	    sb.append(maxLOCAdded).append(",").append(avgLOCAdded).append(",");
+
+	    sb.append(file.getChurn()).append(",");
+
+	    // ciclo for per scrivere i valori massimi e medi di churnList
+	    List<Integer> churnList = file.getChurnList();
+	    int maxChurn = 0;
+	    double avgChurn = 0;
+	    for (int i = 0; i < churnList.size(); i++) {
+	        int churn = churnList.get(i);
+	        maxChurn = Math.max(maxChurn, churn);
+	        avgChurn += churn;
+	    }
+	    avgChurn /= churnList.size();
+	    sb.append(maxChurn).append(",").append(avgChurn).append(",");
+
+	    sb.append(file.getNr()).append(",");
+	    sb.append(file.getNAuth().size()).append(",");
+	    sb.append(file.getBuggyness()).append("\n");
+
+	    fileWriter.write(sb.toString());
+	    fileWriter.flush();
+	}
+
+
+	
 
     
 
@@ -90,8 +108,10 @@ public class MainClass {
     }
 
     private static LocalDateTime getCommitDate(RevCommit commit) {
-        return commit.getAuthorIdent().getWhen().toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime();
+        Instant commitInstant = Instant.ofEpochSecond(commit.getAuthorIdent().getWhen().getTime());
+        return LocalDateTime.ofInstant(commitInstant, ZoneId.systemDefault());
     }
+
     private static void addCommitToTicket(Ticket ticket, RevCommit commit) {
         ticket.getCommitList().add(commit);
     }
@@ -187,25 +207,24 @@ public class MainClass {
         removeUnresolvedTicketsAndSetAVResolution(halfRelease, ticketList);
     }
 
-    private static void removeReleasesAfterHalfPoint(List<Release> release, int releaseNew) {
-        Iterator<Release> i = release.iterator();
-        while (i.hasNext()) {
-            Release s = i.next();
-            if (s.getIndex() > releaseNew) {
-                i.remove();
+    private static void removeReleasesAfterHalfPoint(List<Release> releases, int releaseNew) {
+        for (Release release : new ArrayList<>(releases)) {
+            if (release.getIndex() > releaseNew) {
+                releases.remove(release);
             }
         }
     }
 
+
     private static void removeUnresolvedTicketsAndSetAVResolution(int releaseNew, List<Ticket> ticketNew) {
-        Iterator<Ticket> ticket = ticketNew.iterator();
-        while (ticket.hasNext()) {
-            Ticket t = ticket.next();
-            if (t.getResolutionDate() == null || t.getFV() > releaseNew) {
-                ticket.remove();
+        for (Iterator<Ticket> ticketIterator = ticketNew.iterator(); ticketIterator.hasNext(); ) {
+            Ticket ticket = ticketIterator.next();
+            if (ticket.getResolutionDate() == null || ticket.getFV() > releaseNew) {
+                ticketIterator.remove();
             }
         }
     }
+
 
     public static void affectedVersion(int release, List<Ticket> ticket) {
         removeTickets(release, ticket);
@@ -214,70 +233,68 @@ public class MainClass {
     }
 
     private static void removeTickets(int release, List<Ticket> ticket) {
-        Iterator<Ticket> iterator = ticket.iterator();
-        while (iterator.hasNext()) {
-            Ticket t = iterator.next();
-            if (t.getIV() > release) {
+        for (Iterator<Ticket> iterator = ticket.iterator(); iterator.hasNext(); ) {
+            Ticket ticket1 = iterator.next();
+            if (ticket1.getIV() > release) {
                 iterator.remove();
             }
         }
     }
 
+
     private static void setAVTicketsBookkeeper(int release) {
-        for (Ticket t : ticketListBookkeeper) {
-            if (t.getOV() > release || t.getFV() > release) {
-                List<Integer> affectedVersion = new ArrayList<>();
-                for (int k = t.getIV(); k < release; k++) {
-                    affectedVersion.add(k);
-                }
-                t.setAV(affectedVersion);
-            }
-        }
+        ticketListBookkeeper.stream()
+                            .filter(t -> t.getOV() > release || t.getFV() > release)
+                            .forEach(t -> {
+                                List<Integer> affectedVersion = IntStream.range(t.getIV(), release)
+                                                                         .boxed()
+                                                                         .collect(Collectors.toList());
+                                t.setAV(affectedVersion);
+                            });
     }
+
     
     private static void setAVTicketsOpenjpa(int release) {
-        for (Ticket t : ticketListOpenjpa) {
-            if (t.getOV() > release || t.getFV() > release) {
-                List<Integer> affectedVersion = new ArrayList<>();
-                for (int k = t.getIV(); k < release; k++) {
-                    affectedVersion.add(k);
-                }
-                t.setAV(affectedVersion);
-            }
-        }
+        ticketListOpenjpa.stream()
+                            .filter(t -> t.getOV() > release || t.getFV() > release)
+                            .forEach(t -> {
+                                List<Integer> affectedVersion = IntStream.range(t.getIV(), release)
+                                                                         .boxed()
+                                                                         .collect(Collectors.toList());
+                                t.setAV(affectedVersion);
+                            });
     }
+
 
     public static void checkTicketBookkeeper() {
         for (Ticket ticket : ticketListBookkeeper) {
-            if (ticket.getIV() != 0) {
-                if (isTimeOrderCorrect(ticket)) {
-                    ticket.getAV().clear();
-                    for (int i = ticket.getIV(); i < ticket.getFV(); i++) {
-                        ticket.getAV().add(i);
-                    }
-                } else {
-                    setErrorTicket(ticket);
-                }
-                handleOV(ticket);
+            if (ticket.getIV() == 0) {
+                continue;
             }
+            if (ordering(ticket)) {
+                ticket.setAV(IntStream.range(ticket.getIV(), ticket.getFV()).boxed().collect(Collectors.toList()));
+            } else {
+                setErrorTicket(ticket);
+            }
+            handleOV(ticket);
         }
     }
+
     
     public static void checkTicketOpenjpa() {
         for (Ticket ticket : ticketListOpenjpa) {
-            if (ticket.getIV() != 0) {
-                if (isTimeOrderCorrect(ticket)) {
-                    ticket.getAV().clear();
-                    for (int i = ticket.getIV(); i < ticket.getFV(); i++) {
-                        ticket.getAV().add(i);
-                    }
-                } else {
-                    setErrorTicket(ticket);
-                }
-                handleOV(ticket);
+            if (ticket.getIV() == 0) {
+                continue;
             }
+            if (ordering(ticket)) {
+                ticket.setAV(IntStream.range(ticket.getIV(), ticket.getFV()).boxed().collect(Collectors.toList()));
+            } else {
+                setErrorTicket(ticket);
+            }
+            handleOV(ticket);
         }
     }
+
 
     private static void handleOV(Ticket ticket) {
         if (ticket.getOV() == 1) {
@@ -289,45 +306,46 @@ public class MainClass {
 
 
 
-    private static boolean isTimeOrderCorrect(Ticket ticket) {
+    private static boolean ordering(Ticket ticket) {
         return ticket.getFV() > ticket.getIV() && ticket.getOV() >= ticket.getIV();
     }
 
 
     private static void setErrorTicket(Ticket ticket) {
-        ticket.setIV(0); //setto come errore
-        ticket.getAV().clear();
-        ticket.getAV().add(0);
-
-        if (ticket.getFV().equals(ticket.getIV())) { //se FV = IV -> AV vuota. (caso 'base')
-            ticket.getAV().clear();
-            ticket.getAV().add(0);
-        }
+    	List<Integer> av = new ArrayList<>();
+    	av.add(0);
+    	ticket.setAV(av);
+    	ticket.setIV(0);
+    	if (ticket.getFV() == ticket.getIV()) {
+    		ticket.getAV().clear();
+    	}
     }
 
 
 
     private static void handleOVEquals1(Ticket ticket) {
-        ticket.getAV().clear();
-        ticket.setIV(1);
-
-        if (ticket.getFV() == 1) {
-            // if OV and FV are both 1, don't add any AVs
-        } else {
-            // add all releases from IV to FV-1 to AV
-            for (int i = ticket.getIV(); i < ticket.getFV(); i++) {
-                ticket.getAV().add(i);
-            }
-        }
-    }
+    	ticket.setIV(1);
+    	if (ticket.getFV() == 1) {
+    		ticket.setAV(Collections.emptyList());
+    	} else {
+    		List<Integer> avList = IntStream.range(ticket.getIV(), ticket.getFV())
+		    	.boxed()
+		    	.collect(Collectors.toList());
+		    	ticket.setAV(avList);
+    	}
+    	}
 
     private static void handleOVLessThanFV(Ticket ticket) {
-    	ticket.getAV().clear(); // Svuoto la lista di AV per poi aggiornarla con i valori corretti
-    	ticket.setIV(ticket.getOV()); // IV = OV
-        if (ticket.getFV() > ticket.getOV()) { // Se FV > OV allora ci sono delle versioni AV
+        ticket.setIV(ticket.getOV()); // IV = OV
+        int numAV = ticket.getFV() - ticket.getOV(); // Calcolo il numero di AV
+        if (numAV > 0) { // Se ci sono delle versioni AV
+            List<Integer> avList = new ArrayList<>(); // Creo una nuova lista per le AV
             for (int i = ticket.getIV(); i < ticket.getFV(); i++) { // Assegno ad AV tutte le release da IV ad FV
-                ticket.getAV().add(i);
+                avList.add(i);
             }
+            ticket.setAV(avList); // Aggiorno la lista di AV
+        } else { // Altrimenti, non ci sono versioni AV
+            ticket.getAV().clear(); // Svuoto la lista di AV
         }
     }
 
@@ -426,7 +444,7 @@ public class MainClass {
         setBuilder(percorso + PROJECT.toLowerCase() + endPath);
         logger.log(Level.INFO, "Numero ticket = {0}.", ticketListBookkeeper.size());
         Collections.reverse(ticketListBookkeeper); 
-        Proportion.findProportion(ticketListBookkeeper);
+        findProportion(ticketListBookkeeper);
         checkTicketBookkeeper();  
         getJavaFiles(Paths.get(percorso + PROJECT.toLowerCase()), releasesListBookkeeper);
         isBuggy(releasesListBookkeeper, ticketListBookkeeper); 
@@ -441,7 +459,7 @@ public class MainClass {
         setBuilder(percorso + PROJECT1.toLowerCase() + endPath);
         logger.log(Level.INFO, "Numero ticket = {0}.", ticketListOpenjpa.size());
         Collections.reverse(ticketListOpenjpa);
-        Proportion.findProportion(ticketListOpenjpa);
+        findProportion(ticketListOpenjpa);
         checkTicketOpenjpa(); 
         getJavaFiles(Paths.get(percorso + PROJECT1.toLowerCase()), releasesListOpenjpa);
         isBuggy(releasesListOpenjpa, ticketListOpenjpa); 
@@ -812,24 +830,24 @@ public class MainClass {
 
 //da rivedere
         private static void addJavaFile(TreeWalk treeWalk, Release release, List<String> fileNameList) throws IOException {
-            // Ottieni il nome del file
-            String filename = treeWalk.getPathString();
-            // Se il file ha estensione .java e non è già stato aggiunto alla release
-            if (filename.endsWith(ENDFILE) && !fileNameList.contains(filename)) {
-                    // Crea una nuova istanza di JavaFile con il nome del file
-                    JavaFile file = new JavaFile(filename);
-                    // Imposta gli attributi di default per il nuovo file
-                    setDefaultJavaFileAttributes(treeWalk, file);
-                    // Aggiungi il file alla release
-                    release.getFile().add(file);
-                    // Aggiungi il nome del file alla lista dei file
-                    fileNameList.add(filename);
+            while (treeWalk.next()) {
+                if (treeWalk.isSubtree() || !treeWalk.getPathString().endsWith(ENDFILE)) {
+                    continue;
+                }
+                String filename = treeWalk.getPathString();
+                if (fileNameList.contains(filename)) {
+                    continue;
+                }
+                JavaFile file = new JavaFile(filename);
+                setDefaultJavaFileAttributes(treeWalk, file);
+                release.getFile().add(file);
+                fileNameList.add(filename);
             }
-    }
+        }
+
 
 
         private static void setDefaultJavaFileAttributes(TreeWalk treeWalk, JavaFile file) throws IOException {
-            // Imposta gli attributi di default per un nuovo file Java
             file.setBuggyness("false");
             file.setNr(0);
             file.setNAuth(new ArrayList<>());
@@ -971,5 +989,117 @@ public class MainClass {
             
             return null;
         }
+     //----proportion----
+        public static void findProportion(List<Ticket> ticketList) {
+            List<Ticket> injectedVersion = new ArrayList<>();
+            findInjectedVersion(ticketList, injectedVersion);
+
+            int total = ticketList.size();
+            movingWindows = calculatemovingWindows(total);
+
+            List<Ticket> newProportionTicket = new ArrayList<>();
+            processTicketList(ticketList, injectedVersion, newProportionTicket);
+        }
+
+        private static void findInjectedVersion(List<Ticket> ticketList, List<Ticket> injectedVersion) {
+            ticketList.stream()
+                .filter(ticket -> ticket.getOV().equals(ticket.getFV()) && ticket.getIV() == 0)
+                .forEach(ticket -> {
+                    ticket.setIV(ticket.getFV());
+                    injectedVersion.add(ticket);
+                });
+    }
+
+
+        private static int calculatemovingWindows(int total) {
+            return total / 100;
+        }
+
+        private static void processTicketList(List<Ticket> ticketList, List<Ticket> injectedVersion, List<Ticket> newProportionTicket) {
+            for (Ticket ticket : ticketList) {
+                if (!injectedVersion.contains(ticket)) {
+                    if (ticket.getIV() != 0) {
+                    	movingWindows(newProportionTicket, ticket);
+                    } else {
+                        injectedProportion(newProportionTicket, ticket);
+                    }
+                }
+            }
+        }
+
+        public static void movingWindows(List<Ticket> movingWindow, Ticket ticket) {
+            if (movingWindow.size() < movingWindows) {
+                movingWindow.add(ticket); 
+            } else {
+                movingWindow.remove(0);
+                movingWindow.add(ticket); 
+            }
+        }
+
+
+        public static void injectedProportion(List<Ticket> newProportionTicket, Ticket ticket) {
+            float p = calculateP(newProportionTicket);
+            int avgPFloor = calculateAvgPFloor(p);
+            int predictedIv = calculatePredictedIv(ticket, avgPFloor);
+            ticket.setIV(Math.min(predictedIv, ticket.getOV()));
+        }
+
+        private static float calculateP(List<Ticket> newProportionTicket) {
+            float p = 0;
+            for (Ticket t : newProportionTicket) {
+                p += obtainingP(t);
+            }
+            return p;
+        }
+
+
+        private static int calculateAvgPFloor(float p) {
+            return (int) Math.floor(p / movingWindows);
+        }
+
+        private static int calculatePredictedIv(Ticket ticket, int avgPFloor) {
+            int fv = ticket.getFV();
+            int ov = ticket.getOV();
+            return fv - (fv - ov) * avgPFloor;
+        }
+
+
+        public static void injectedProportion1(List<Ticket> newProportionTicket,Ticket ticket){
+            float p = calculateP(newProportionTicket);
+            int avgPFloor = calculateAverageIV(p);
+            int fv = ticket.getFV();
+            int ov = ticket.getOV();
+            int predictedIv = fv-(fv-ov)*avgPFloor;
+            ticket.setIV(Math.min(predictedIv, ov));
+        }
+
+
+        private static int calculateAverageIV(float p) {
+            return (int)Math.floor(p/movingWindows);
+        }
+
+        /**
+         * Calcola la proporzione P per un Ticket.
+         * @param ticket il Ticket per cui calcolare la proporzione
+         * @return la proporzione P calcolata
+         */
+        private static float obtainingP(Ticket ticket) {
+            final float fv = ticket.getFV();
+            final float ov = ticket.getOV();
+            final float iv = ticket.getIV();
+            
+            if (Float.compare(fv, ov) == 0) {
+                return 0f;
+            }
+            
+            return (fv - iv) / (fv - ov);
+        }
+
+
+
+
+
+
+
 
 }
