@@ -1,7 +1,10 @@
 package main;
 
 import org.eclipse.jgit.revwalk.RevCommit;
+import org.json.JSONArray;
+import org.json.JSONObject;
 
+import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -9,10 +12,10 @@ import java.util.List;
 public class Ticket {
 
     private String id;
-    private Integer fv; //fixed version
-    private Integer ov; 
-    private Integer iv; //
-    private List<Integer> av; 
+    private Integer fixedVersion;
+    private Integer openVersion; 
+    private Integer injectedVersion; //
+    private List<Integer> affectedVersion; 
     private Integer index;
     
     private LocalDateTime resolutionDate;
@@ -23,55 +26,71 @@ public class Ticket {
     private List<String> fileList;
 
 
-    //costruttore
-    
-    
-    
-
-
     public Ticket (String id, LocalDateTime creationDate, List<Integer> av)
     {
         this.id = id;
-        this.av = av;
-        this.creationDate = creationDate;
+        this.affectedVersion = av;
         this.commitList = new ArrayList<>();
         this.fileList = new ArrayList<>();
+        this.creationDate = creationDate;
     }
 
-    //get
-    public String getID() {
+  
+    public String getTicketID() {
         return id;
     }
+    
 
-    public List<Integer> getAV() {
-        return av;
+    public List<Integer> getAffectedVersion() {
+        return affectedVersion;
+    }
+    public void setAffectedVersion(List<Integer> av) {
+        this.affectedVersion = av;
     }
 
     public LocalDateTime getResolutionDate() {
         return resolutionDate;
     }
+    public void setResolutionDate(LocalDateTime resolutionDate) {
+        this.resolutionDate = resolutionDate;
+    }
 
     public LocalDateTime getCreationDate() {
         return creationDate;
     }
+    public void setCreationDate(LocalDateTime creationDate) {
+        this.creationDate = creationDate;
+    }
     
     
 
 
-    public Integer getFV() {
-        return fv;
+    public Integer getFixedVersion() {
+        return fixedVersion;
+    }
+    public void setFixedVersion(Integer fv) {
+        this.fixedVersion = fv;
     }
 
-    public Integer getOV() {
-        return ov;
+    public Integer getOpenVersion() {
+        return openVersion;
+    }
+    public void setOpenVersion(Integer ov) {
+        this.openVersion = ov;
     }
 
-    public Integer getIV() {
-        return iv;
+    public Integer getInjectedVersion() {
+        return injectedVersion;
+    }
+    public void setInjectedVersion(Integer iv) {
+        this.injectedVersion = iv;
     }
     
     public List<LocalDateTime> getCommitDateList() {
         return commitDateList;
+    }
+    public void setCommitDateList(List<LocalDateTime> commitDateList) {
+        this.commitDateList = commitDateList;
     }
 
 
@@ -79,48 +98,54 @@ public class Ticket {
         return index;
     }
 
-    public List<String>  getFileList() { return fileList;}
-
-
-
+    public List<String>  getFileList() { 
+    	return fileList;
+    	}
+    
+    public void setIndex(Integer index) {
+        this.index = index;
+    }
 
     public List<RevCommit> getCommitList() {
         return commitList;
     }
 
-    //set
-
-    public void setAV(List<Integer> av) {
-        this.av = av;
+    public static List<Ticket> getTickets(List<Release> releases, String projName) throws IOException {
+		List<Ticket> tickets = new ArrayList<>();
+        Integer i = 0;
+        Integer total = 1;
+        while (i < total) {
+            Integer j = i + 1000;
+            String url = "https://issues.apache.org/jira/rest/api/2/search?jql=project=%22" + projName +
+                    "%22AND%22issueType%22=%22Bug%22AND(%22status%22=%22closed%22OR%22status%22=%22resolved%22)" +
+                    "AND%22resolution%22=%22fixed%22&fields=key,resolutiondate,affectedVersion,versions,created&startAt="
+                    + i + "&maxResults=" + j.toString();
+            JSONObject json = Release.readJsonFromUrl(url);
+            JSONArray issues = json.getJSONArray("issues");
+            total = json.getInt("total");
+            for (; i < total && i < j; i++) {
+                JSONObject jsonIssues = issues.getJSONObject(i % 1000);
+                Ticket ticket = createTicket(jsonIssues, releases);
+                tickets.add(ticket);
+            }
+        }
+        return tickets;
     }
 
-    public void setResolutionDate(LocalDateTime resolutionDate) {
-        this.resolutionDate = resolutionDate;
-    }
-
-    public void setCreationDate(LocalDateTime creationDate) {
-        this.creationDate = creationDate;
-    }
-
-    public void setFV(Integer fv) {
-        this.fv = fv;
-    }
-
-    public void setOV(Integer ov) {
-        this.ov = ov;
-    }
-
-    public void setIV(Integer iv) {
-        this.iv = iv;
-    }
-    public void setCommitDateList(List<LocalDateTime> commitDateList) {
-        this.commitDateList = commitDateList;
-    }
-
-
-
-    public void setIndex(Integer index) {
-        this.index = index;
+    private static Ticket createTicket(JSONObject jsonIssues, List<Release> releases) {
+        JSONObject jsonFields = jsonIssues.getJSONObject("fields");
+        String key = jsonIssues.get("key").toString();
+        LocalDateTime creationDate = LocalDateTime.parse(jsonFields.getString("created").substring(0, 16));
+        JSONArray affectedVersions = jsonFields.getJSONArray("versions");
+        List<Integer> affectedVersionsIndexList = Release.getAV(affectedVersions, releases);
+        Ticket ticket = new Ticket(key, creationDate, affectedVersionsIndexList);
+        if (!(affectedVersionsIndexList.isEmpty() || affectedVersionsIndexList.get(0) == null)) {
+            ticket.setInjectedVersion(affectedVersionsIndexList.get(0));
+        } else {
+            ticket.setInjectedVersion(0);
+        }
+        ticket.setOpenVersion(MainClass.afterBeforeDate(creationDate, releases));
+        return ticket;
     }
 
 
