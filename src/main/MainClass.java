@@ -47,8 +47,20 @@ import java.util.stream.IntStream;
 
 public class MainClass {
 	
+	public static final String PROJECT = "BOOKKEEPER";
+	public static final String PROJECT1 = "OPENJPA";
+	static String nameGit = "git";
+	static String endPath = "/." + nameGit ;
 	
-	
+	static String name = "giuliamenichini";
+	static String percorso = "/Users/" + name + "/";
+	public static final String PATH = "/Users/giuliamenichini/eclipse-workspace/ISW2/";
+	static String uriOpenjpa = PATH +PROJECT1+ "Dataset.csv";
+	static String uriBookkeeper = PATH +PROJECT+ "Dataset.csv";
+
+	static String uriArffOpenjpa = PATH +PROJECT1+"Dataset.arff";
+	static String uriArffBookkeeper = PATH+PROJECT+"Dataset.arff";
+
 	private static int movingWindows;
 
 	private static final String ENDFILE = ".java";
@@ -401,24 +413,12 @@ public class MainClass {
     private static List<Ticket> ticketListOpenjpa;
     private static List<RevCommit> commitListBookkeeper;
     private static List<RevCommit> commitListOpenjpa;
-    public static final String PROJECT = "BOOKKEEPER";
-    public static final String PROJECT1 = "OPENJPA";
+   
     
 
     public static void main(String[] args) throws IllegalStateException, GitAPIException, IOException, JSONException {
     	
-    	String nameGit = "git";
-    	String endPath = "/." + nameGit ;
     	
-    	String name = "giuliamenichini";
-    	String percorso = "/Users/" + name + "/eclipse-workspace/ISW2/";
-    	
-    	String uriOpenjpa = percorso +PROJECT1+ "Dataset.csv";
-    	String uriBookkeeper = percorso +PROJECT+ "Dataset.csv";
-
-    	String uriArffOpenjpa = percorso +PROJECT1+"Dataset.arff";
-    	String uriArffBookkeeper = percorso+PROJECT+"Dataset.arff";
-
         releasesListBookkeeper = Release.getListRelease(PROJECT);
         releasesListOpenjpa = Release.getListRelease(PROJECT1);
         commitListBookkeeper = getAllCommits(releasesListBookkeeper, Paths.get(percorso + PROJECT.toLowerCase()));
@@ -500,11 +500,12 @@ public class MainClass {
     }
 
     public static void analyzeMetrics(List<Release> releasesList, Repository repository) {
-    	for (Release release : releasesList) {
-    	List<JavaFile> javaFile = analyzeRelease(release, repository);
-    	metricsOfFilesByRelease(javaFile, release);
-    	}
+        releasesList.forEach(release -> {
+            List<JavaFile> javaFiles = analyzeRelease(release, repository);
+            metricsOfFilesByRelease(javaFiles, release);
+        });
     }
+
 
     private static List<JavaFile> analyzeRelease(Release release, Repository repository) {
         return release.getCommitList().stream()
@@ -532,9 +533,6 @@ public class MainClass {
             .flatMap(List::stream)
             .collect(Collectors.toList());
     }
-
-
-
 
 
 
@@ -1024,24 +1022,21 @@ public class MainClass {
         }
 
         private static void processTicketList(List<Ticket> ticketList, List<Ticket> injectedVersion, List<Ticket> newProportionTicket) {
-            for (Ticket ticket : ticketList) {
-                if (!injectedVersion.contains(ticket)) {
-                    if (ticket.getInjectedVersion() != 0) {
-                    	movingWindows(newProportionTicket, ticket);
-                    } else {
-                        injectedProportion(newProportionTicket, ticket);
-                    }
-                }
-            }
+            ticketList.stream()
+                     .filter(ticket -> !injectedVersion.contains(ticket))
+                     .forEach(ticket -> {
+                         if (ticket.getInjectedVersion() != 0) {
+                             movingWindows(newProportionTicket, ticket);
+                         } else {
+                             injectedProportion(newProportionTicket, ticket);
+                         }
+                     });
         }
 
+
         public static void movingWindows(List<Ticket> movingWindow, Ticket ticket) {
-            if (movingWindow.size() < movingWindows) {
-                movingWindow.add(ticket); 
-            } else {
-                movingWindow.remove(0);
-                movingWindow.add(ticket); 
-            }
+            movingWindow.add(ticket);
+            movingWindow.removeIf(t -> movingWindow.size() > movingWindows);
         }
 
 
@@ -1053,12 +1048,11 @@ public class MainClass {
         }
 
         private static float calculateP(List<Ticket> newProportionTicket) {
-            float p = 0;
-            for (Ticket t : newProportionTicket) {
-                p += obtainingP(t);
-            }
-            return p;
+            return newProportionTicket.stream()
+                                      .map(ticket -> obtainingP(ticket))
+                                      .reduce(0f, (a, b) -> a + b);
         }
+
 
 
         private static int calculateAvgPFloor(float p) {
@@ -1068,8 +1062,9 @@ public class MainClass {
         private static int calculatePredictedIv(Ticket ticket, int avgPFloor) {
             int fv = ticket.getFixedVersion();
             int ov = ticket.getOpenVersion();
-            return fv - (fv - ov) * avgPFloor;
+            return fv == ov ? ov : (int) (fv - (fv - ov) * Math.floor(avgPFloor));
         }
+
 
 
         public static void injectedProportion1(List<Ticket> newProportionTicket,Ticket ticket){
@@ -1096,12 +1091,9 @@ public class MainClass {
             final float ov = ticket.getOpenVersion();
             final float iv = ticket.getInjectedVersion();
             
-            if (Float.compare(fv, ov) == 0) {
-                return 0f;
-            }
-            
-            return (fv - iv) / (fv - ov);
+            return Float.compare(fv, ov) == 0 ? 0f : (fv - iv) / (fv - ov);
         }
+
 
 
 
