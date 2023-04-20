@@ -54,9 +54,11 @@ public class MainClass {
 	
 	static String name = "giuliamenichini";
 	static String percorso = "/Users/" + name + "/";
-	public static final String PATH = "/Users/giuliamenichini/eclipse-workspace/ISW2/";
-	static String uriOpenjpa = PATH +PROJECT1+ "Dataset.csv";
-	static String uriBookkeeper = PATH +PROJECT+ "Dataset.csv";
+	public static final String PATH = System.getProperty("user.dir") + "/";
+	public static final String DATASET_FILENAME = "Dataset.csv";
+	public static final String uriOpenjpa = PATH + PROJECT1 + DATASET_FILENAME;
+	public static final String uriBookkeeper = PATH + PROJECT1 + DATASET_FILENAME;
+
 
 	static String uriArffOpenjpa = PATH +PROJECT1+"Dataset.arff";
 	static String uriArffBookkeeper = PATH+PROJECT+"Dataset.arff";
@@ -1062,7 +1064,7 @@ public class MainClass {
         private static int calculatePredictedIv(Ticket ticket, int avgPFloor) {
             int fv = ticket.getFixedVersion();
             int ov = ticket.getOpenVersion();
-            return fv == ov ? ov : (int) (fv - (fv - ov) * Math.floor(avgPFloor));
+            return fv == ov ? ov : (int) (fv - (fv - ov) * avgPFloor);
         }
 
 
