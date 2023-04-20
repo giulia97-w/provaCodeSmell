@@ -41,17 +41,17 @@ import weka.filters.supervised.instance.SMOTE;
 
 public class weka{ 
 	static String projectName = "BOOKKEEPER"; //or OPENJPA
+	public static final String SENSITIVE_LEARNING = "SENSITIVE LEARNING";
+	public static final String SENSITIVE_THRESHOLD = "SENSITIVE THRESHOLD";
 
 	private static final Logger logger =  Logger.getLogger(weka.class.getName());
-	
 	public static void main(String[] args) throws Exception
 	{
 		String projectName1 = "BOOKKEEPER"; //or OPENJPA
 		
 		String nomeFile = projectName1.toLowerCase() + "Dataset.csv" ;
-		String progetto =  " relativo al progetto " + projectName1;
 		String path = "/Users/giuliamenichini/eclipse-workspace/ISW2/" + nomeFile ;
-		logger.info("Caricando dataset: " + nomeFile + " " + progetto);
+		logger.info("Caricando dataset: ");
 
 	    
 		createFile(path);
@@ -166,37 +166,29 @@ public class weka{
 	    Instances trainingSet = createTrainingSet(sets, currentIndex);
 	    trainingSet.setClassIndex(trainingSet.numAttributes() - 1);
 	    testSet.setClassIndex(testSet.numAttributes() - 1);
-	    Instances[] trainingAndTestSet = {trainingSet, testSet};
-	    return trainingAndTestSet;
+	    return new Instances[]{trainingSet, testSet};
 	}
 	// applicazione algoritmo di FS al train e al test in particolare BESTFIRST
 	public Instances[] applyFeatureSelection(String featureSelection, Instances trainingSet, Instances testSet) throws Exception {
 	    Instances filteredTrainingSet = trainingSet;
 	    Instances filteredTestSet = testSet;
-	    switch(featureSelection) {
-	        case "BEST FIRST":
-	            List<Instances> filteredSets = featureSelection(trainingSet, testSet);
-	            filteredTrainingSet = filteredSets.get(1);
-	            filteredTestSet = filteredSets.get(0);
-	            break;
-	        default:
-	            break;
+	    if (featureSelection.equals("BEST FIRST")) {
+	        List<Instances> filteredSets = featureSelection(trainingSet, testSet);
+	        filteredTrainingSet = filteredSets.get(1);
+	        filteredTestSet = filteredSets.get(0);
 	    }
-	    Instances[] filteredTrainingAndTestSet = {filteredTrainingSet, filteredTestSet};
-	    return filteredTrainingAndTestSet;
+	    return new Instances[]{filteredTrainingSet, filteredTestSet};
 	}
 	//nessuna applicazione del bilanciamento
 	public Evaluation trainAndEvaluateModel(String balancing, String classifier, String costEvaluation, Instances trainingSet, Instances testSet) throws Exception {
 	    Classifier classifierInstance = chooseClassificationType(classifier);
-	    switch(balancing) {
-	        case "NO":
-	            break;
-	        default:
-	            classifierInstance = balancing(classifierInstance, balancing, trainingSet);
-	            break;
+	    if (balancing.equals("NO")) {
+	        // do nothing
+	    } else {
+	        classifierInstance = balancing(classifierInstance, balancing, trainingSet);
 	    }
-	    Evaluation evaluation = evaluateModel(costEvaluation, classifierInstance, trainingSet, testSet);
-	    return evaluation;
+
+	    return evaluateModel(costEvaluation, classifierInstance, trainingSet, testSet);
 	}
 	//Iterazione di un loop su i dati di train e test con l'applicazione di FS, balancing e classification. 
 	//Per ogni iterazione i dati vengono salvati e si va avanti per ogni versione
@@ -316,7 +308,7 @@ public class weka{
 	private static Evaluation evaluateModel(String costEvaluation, Classifier c, Instances train, Instances test) {
 	    Evaluation ev = null;
 
-	    for (String evalType : Arrays.asList("NO", "SENSITIVE THRESHOLD", "SENSITIVE LEARNING")) {
+	    for (String evalType : Arrays.asList("NO", SENSITIVE_THRESHOLD, SENSITIVE_LEARNING)) {
 	        if (evalType.equals(costEvaluation)) {
 	            try {
 	                switch (evalType) {
@@ -325,7 +317,7 @@ public class weka{
 	                        ev = new Evaluation(test);
 	                        ev.evaluateModel(c, test);
 	                        break;
-	                    case "SENSITIVE THRESHOLD":
+	                    case SENSITIVE_THRESHOLD:
 	                        CostSensitiveClassifier cst = new CostSensitiveClassifier();
 	                        cst.setClassifier(c);
 	                        cst.setCostMatrix(createCostMatrix(1.0, 10.0));
@@ -334,7 +326,7 @@ public class weka{
 	                        ev = new Evaluation(test, cst.getCostMatrix());
 	                        ev.evaluateModel(cst, test);
 	                        break;
-	                    case "SENSITIVE LEARNING":
+	                    case SENSITIVE_LEARNING:
 	                        CostSensitiveClassifier sl = new CostSensitiveClassifier();
 	                        sl.setClassifier(c);
 	                        sl.setCostMatrix(createCostMatrix(1.0, 10.0));
@@ -343,6 +335,9 @@ public class weka{
 	                        sl.buildClassifier(weightedTrain);
 	                        ev = new Evaluation(test, sl.getCostMatrix());
 	                        ev.evaluateModel(sl, test);
+	                        break;
+	                    default:
+	                    	logger.log(Level.WARNING, "Tipo di valutazione non supportato: " + evalType);
 	                        break;
 	                }
 	            } catch (Exception e) {
@@ -447,7 +442,7 @@ public class weka{
 	public static List<List<String>> getModelConfigurations() {
 		return Arrays.asList("NO", "BEST FIRST").stream()
 		        .flatMap(fS -> Arrays.asList("NO", "UNDERSAMPLING", "OVERSAMPLING", "SMOTE").stream()
-		                .flatMap(b -> Arrays.asList("NO", "SENSITIVE THRESHOLD", "SENSITIVE LEARNING").stream()
+		                .flatMap(b -> Arrays.asList("NO", SENSITIVE_THRESHOLD, SENSITIVE_LEARNING).stream()
 		                        .flatMap(cE -> Arrays.asList("RANDOM FOREST", "NAIVE BAYES", "IBK").stream()
 		                                .map(c -> Arrays.asList(fS, b, cE, c)))))   
 		        .collect(Collectors.toList());
@@ -455,7 +450,7 @@ public class weka{
 
 
 	    
-	public static ArrayList<Measure> computeMeasures(List<List<String>> modelConfigs, ArrayList<Instances> sets) throws Exception {
+	public static ArrayList<Measure> computeMeasures(List<List<String>> modelConfigs, List<Instances> sets) throws Exception {
 	    ArrayList<Measure> measures = new ArrayList<>();
 	    weka v = new weka();
 
@@ -487,14 +482,14 @@ public class weka{
 	}
 
 	private static Instances extractInstancesForVersion(Instances data, int version) {
-	    Instances versionInstances = data.stream()
+	    
+	    return data.stream()
 	            .filter(instance -> (int) instance.value(0) == version)
 	            .collect(Collectors.toCollection(() -> {
 	                Instances instances = new Instances(data, 0);
 	                instances.setRelationName("version_" + version);
 	                return instances;
 	            }));
-	    return versionInstances;
 	}
 
 
@@ -506,19 +501,14 @@ public class weka{
 	        writer.println("Dataset,#TrainingRelease,%Training,%Defective in training,%Defective in testing,Classifier,Balancing,Feature Selection,Sensitivity,TP,FP,TN,FN,Precision,Recall,AUC,Kappa");
 	        
 	        measures.forEach(measure -> {
-				try {
-					createCSV(writer, measure);
-				} catch (IOException e) {
-					
-					e.printStackTrace();
-				}
+				createCSV(writer, measure);
 			});
 	    } catch (IOException e) {
 	        logger.log(Level.INFO, "Errore durante la scrittura del csv.");
 	    }
 	}
 
-	private static void createCSV(PrintWriter writer, Measure measure) throws IOException {
+	private static void createCSV(PrintWriter writer, Measure measure)  {
 	    String[] fields = {measure.getDataset(), measure.getRelease().toString(), measure.getTrainPercentage().toString(),
 	        measure.getDefectInTrainPercentage().toString(), measure.getDefectInTestPercentage().toString(),
 	        measure.getClassifier(), measure.getBalancing(), measure.getFeatureSelection(), measure.getSensitivity(),
