@@ -90,6 +90,8 @@ public class weka{
 	            Method method = Measure.class.getMethod(fields[i], String.class);
 	            method.invoke(m, s[i]);
 	        } catch (Exception e) {
+	            logger.log(Level.SEVERE, "Error occurred while calculating Buggyness " + fields[i] , e);
+
 	        }
 	    }
 
@@ -99,6 +101,7 @@ public class weka{
 	    return m;
 	}
 
+	
 
 
 	//prende in input le info e setta le metriche di valutazione con tp,fp,fn,tn
