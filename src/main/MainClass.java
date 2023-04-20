@@ -54,10 +54,10 @@ public class MainClass {
 	
 	static String name = "giuliamenichini";
 	static String percorso = "/Users/" + name + "/";
-	public static final String PATH = System.getProperty("user.dir") + "/";
+	public static final String PATH = System.getProperty("user.dir");
 	public static final String DATASET_FILENAME = "Dataset.csv";
-	public static final String uriOpenjpa = PATH + PROJECT1 + DATASET_FILENAME;
-	public static final String uriBookkeeper = PATH + PROJECT1 + DATASET_FILENAME;
+	public static final String URI_OPENJPA = PATH + PROJECT1 + DATASET_FILENAME;
+	public static final String URI_BOOKKEEPER = PATH + PROJECT1 + DATASET_FILENAME;
 
 
 	static String uriArffOpenjpa = PATH +PROJECT1+"Dataset.arff";
@@ -385,7 +385,7 @@ public class MainClass {
     }
 
     public static void createCSV(List<Release> releases, String projectName) {
-    	String fileName = "Dataset.csv";
+    	String fileName = DATASET_FILENAME;
         try (BufferedWriter writer = Files.newBufferedWriter(Paths.get(projectName.toLowerCase() + fileName))) {
             // Creazione del file CSV e scrittura dell'intestazione.
             writer.write("RELEASE,FILENAME,SIZE,LOC_added,MAX_LOC_Added,AVG_LOC_Added,CHURN,MAX_Churn,AVG_Churn,NR,NAUTH,BUGGYNESS\n");
@@ -461,7 +461,7 @@ public class MainClass {
         
         //csvLoader openjpa
         CSVLoader loaderOpenjpa = new CSVLoader();
-        loaderOpenjpa.setSource(new File(uriOpenjpa));
+        loaderOpenjpa.setSource(new File(URI_OPENJPA));
         Instances dataOpenjpa = loaderOpenjpa.getDataSet();
 
         // Salva il file ARFF Openjpa
@@ -473,7 +473,7 @@ public class MainClass {
         
         //csvLoader bookkeeper
         CSVLoader loaderBookkeeper = new CSVLoader();
-        loaderBookkeeper.setSource(new File(uriBookkeeper));
+        loaderBookkeeper.setSource(new File(URI_BOOKKEEPER));
         Instances dataBookkeeper = loaderBookkeeper.getDataSet();
         
         
