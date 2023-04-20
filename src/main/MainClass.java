@@ -877,15 +877,21 @@ public class MainClass {
         }
 
 
-        public static void isBuggy(List<Release> releases, List<Ticket> tickets)  {
-            tickets.forEach(ticket -> {
-				try {
-					verify(ticket, releases);
-				} catch (IOException e) {
-					
-				}
-			});
-        }
+		
+
+		public static void isBuggy(List<Release> releases, List<Ticket> tickets) {
+		    Logger logger = Logger.getLogger("MyLogger");
+		    tickets.forEach(ticket -> {
+		        try {
+		            verify(ticket, releases);
+		        } catch (IOException e) {
+		            logger.log(Level.SEVERE, "Error occurred while verifying ticket " + ticket.getTicketID(), e);
+		        }
+		    });
+		}
+
+
+
 
 
         private static void verify(Ticket ticket, List<Release> releaseList) throws IOException {
