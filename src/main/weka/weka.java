@@ -1,19 +1,25 @@
 package weka;
 
 
-
-
-
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.PrintWriter;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.Random;
 import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+
+import weka.attributeSelection.ASEvaluation;
+import weka.attributeSelection.ASSearch;
 import weka.attributeSelection.BestFirst;
 import weka.attributeSelection.CfsSubsetEval;
 import weka.classifiers.Classifier;
@@ -34,161 +40,212 @@ import weka.filters.supervised.instance.SpreadSubsample;
 import weka.filters.supervised.instance.SMOTE;
 
 public class weka{ 
+	static String projectName = "BOOKKEEPER"; //or OPENJPA
+	public static final String SENSITIVE_LEARNING = "SENSITIVE LEARNING";
+	public static final String SENSITIVE_THRESHOLD = "SENSITIVE THRESHOLD";
 
 	private static final Logger logger =  Logger.getLogger(weka.class.getName());
-	
 	public static void main(String[] args) throws Exception
 	{
-		String dataSetA = "/Users/giuliamenichini/eclipse-workspace/ISW2/openjpaDataset.arff";
-		computeAccuracy(dataSetA,"OPENJPA");
+		String projectName1 = "BOOKKEEPER"; //or OPENJPA
+		
+		String nomeFile = projectName1.toLowerCase() + "Dataset.csv" ;
+		String path = "/Users/giuliamenichini/eclipse-workspace/ISW2/" + nomeFile ;
+		logger.info("Caricando dataset: ");
+
+	    
+		createFile(path);
 		
 
 	}
-
-	//calcolo probabilità di train rispetto a train + test
-	private static double  calculateTrainingTestingRatio(Instances train, Instances test) {
-	    return (train.size()) / ((double) train.size() + (double) test.size());
+	//calcola il rapporto tra la dimensione del training set
+	//e la somma delle dimensioni del training set e del test set. 
+	//Il valore restituito è un numero compreso tra 0 e 1 che rappresenta 
+	//la frazione del totale delle istanze che sono nel training set. 
+	
+	private static double calculateTrainingTestingRatio(Instances train, Instances test) {
+	    double trainSize = train.numInstances();
+	    double testSize = test.numInstances();
+	    return trainSize / (trainSize + testSize);
 	}
 
-	private static int calculateModuleNumber(String projName) {
-		logger.info("sono qui 11");
+	
 
-	    int mod = 1;
-	    if (projName.equals("BOOKKEEPER"))
-	        mod = 6;
-	    if (projName.equals("OPENJPA"))
-	        mod = 16;
-	    return mod;
-	}
-
-	private static int calculateReleaseNumber( int version, int mod) {
-		logger.info("sono qui 12");
-
-	    return (version % mod) + 1;
-	}
+	
 
 	private static double calculateBuggy(Instances instances) {
-		logger.info("sono qui 13");
 
 	    return numOfBuggy(instances);
 	}
+	// metodo per ipostare nome del progetto, release, classificatore utilizzato, bilanciamento, featureSelection
+	//sensitivity, defectiveInTraining, defectiveInTesting, trainPercentage, testPercentage
+	public static Measure createMeasureObject(Instances train, Instances test, String[] s,  int version) {
+	    Measure m = new Measure(projectName);
+	    m.setReleaseNumber(version + 1);
 
-	public static Measure createMeasureObject(Instances train, Instances test, String[] s, String projName, int version) {
-	    double trainingTestingRatio =  calculateTrainingTestingRatio(train, test);
-	    int moduleNumber = calculateModuleNumber(projName);
-	    int releaseNumber = calculateReleaseNumber(version, moduleNumber);
-	    double  buggyPercentageInTrainingSet = calculateBuggy(train);
-	    double buggyPercentageInTestingSet = calculateBuggy(test);
-		logger.info("sono qui 1");
+	    String[] fields = {"setClassifier", "setBalancingMethod", "setFeatureSelectionMethod", "setSensitivityMethod"};
+	    for (int i = 0; i < fields.length; i++) {
+	        try {
+	            Method method = Measure.class.getMethod(fields[i], String.class);
+	            method.invoke(m, s[i]);
+	        } catch (Exception e) {
+	            e.printStackTrace();
+	        }
+	    }
 
-	    Measure m = new Measure(projName);
-	    m.setReleaseNumber(releaseNumber);
-	    m.setClassifier(s[0]);
-	    m.setBalancingMethod(s[1]);
-	    m.setFeatureSelectionMethod(s[2]);
-	    m.setSensitivityMethod(s[3]);
-	    m.setTrainingTestingRatio(trainingTestingRatio);
-	    m.setBuggyPercentageInTestingSet(buggyPercentageInTestingSet);
-	    m.setBuggyPercentageInTrainingSet( buggyPercentageInTrainingSet);
-		logger.info("sono qui 2");
-
+	    m.setTrainingTestingRatio(calculateTrainingTestingRatio(train, test));
+	    m.setBuggyPercentageInTrainingSet(calculateBuggy(train));
+	    m.setBuggyPercentageInTestingSet(calculateBuggy(test));
 	    return m;
 	}
 
 
-	private static void evaluateAndAddMeasure(Evaluation e, Instances train, Instances test, String[] s, String projName, List<Measure> measures, int version) {
-	    Measure measure = createMeasureObject(train, test, s, projName, version);
-	    logger.info("sono qui 3");
-	    measure.setAuc(e.areaUnderROC(1));
-	    measure.setKappa(e.kappa());
-	    measure.setRecall(e.recall(1));
-	    measure.setPrecision(e.precision(1));
-	    measure.setTrueNegatives((int) e.numTrueNegatives(1));
-	    measure.setTruePositives((int) e.numTruePositives(1));
-	    measure.setFalseNegatives((int) e.numFalseNegatives(1));
-	    measure.setFalsePositives((int) e.numFalsePositives(1));
-	    logger.info("sono qui 4");
+
+	//prende in input le info e setta le metriche di valutazione con tp,fp,fn,tn
+	private static void evaluateAndAddMeasure(Evaluation e, Instances train, Instances test, String[] s,  List<Measure> measures, int version) {
+	    Measure measure = createMeasureObject(train, test, s,  version);
+	    String[] evaluationMetrics = {"auc", "kappa", "recall", "precision", "trueNegatives", "truePositives", "falseNegatives", "falsePositives"};
+	    double[] evaluationValues = {e.areaUnderROC(1), e.kappa(), e.recall(1), e.precision(1), e.numTrueNegatives(1), e.numTruePositives(1), e.numFalseNegatives(1), e.numFalsePositives(1)};
+	    for (int i = 0; i < evaluationMetrics.length; i++) {
+	        String metric = evaluationMetrics[i];
+	        double value = evaluationValues[i];
+	        switch (metric) {
+	            case "auc":
+	                measure.setAuc(value);
+	                break;
+	            case "kappa":
+	                measure.setKappa(value);
+	                break;
+	            case "recall":
+	                measure.setRecall(value);
+	                break;
+	            case "precision":
+	                measure.setPrecision(value);
+	                break;
+	            case "trueNegatives":
+	                measure.setTrueNegatives((int) value);
+	                break;
+	            case "truePositives":
+	                measure.setTruePositives((int) value);
+	                break;
+	            case "falseNegatives":
+	                measure.setFalseNegatives((int) value);
+	                break;
+	            case "falsePositives":
+	                measure.setFalsePositives((int) value);
+	                break;
+	            default:
+	                break;
+	        }
+	    }
 	    measures.add(measure);
 	}
 
-	public static AttributeSelection createFeatureSelectionFilter() throws Exception {
-		logger.info("sono qui 5");
-	    AttributeSelection filter = new AttributeSelection();
-	    filter.setEvaluator(new CfsSubsetEval());
-	    filter.setSearch(new BestFirst());
-	    logger.info("sono qui 6");
-	    return filter;
-	    
-	}
+
+
 	
-	public void walkForward(String featureSelection, String balancing, String costEvaluation, String classifier, List<Instances> sets, List<Measure> measures, String projectName) throws Exception {
-	    int version = 0;
-	    logger.info("sono qui 7");
+	//filtro di selezione delle feature, apploca CfsSubsetEval che valuta l'importanza di ogni feature
+	//in base alla relazione con la classe target e con gli altri attributi
+	//BestFirst ricerca il sottoinsieme migliore utilizzando una strategia di ricerca forward
+	//la ricerca è indipendente dall'algoritmo di addestramento
+	public static AttributeSelection createFeatureSelectionFilter() throws Exception {
+	    return createFilter(new CfsSubsetEval(), new BestFirst());
+	}
+
+	private static AttributeSelection createFilter(ASEvaluation evaluator, ASSearch search) {
+	    AttributeSelection filter = new AttributeSelection();
+	    filter.setEvaluator(evaluator);
+	    filter.setSearch(search);
+	    return filter;
+	}
+
+	//creazione set di addestramento e di test . Il set di test è creato a partire dall'insieme corrente mentre il train
+	//tutte meno una infine si impostano gli attributi.
+	public Instances[] createTrainingAndTestSet(List<Instances> sets, int currentIndex) {
+	    Instances testSet = new Instances(sets.get(currentIndex));
+	    Instances trainingSet = createTrainingSet(sets, currentIndex);
+	    trainingSet.setClassIndex(trainingSet.numAttributes() - 1);
+	    testSet.setClassIndex(testSet.numAttributes() - 1);
+	    return new Instances[]{trainingSet, testSet};
+	}
+	// applicazione algoritmo di FS al train e al test in particolare BESTFIRST
+	public Instances[] applyFeatureSelection(String featureSelection, Instances trainingSet, Instances testSet) throws Exception {
+	    Instances filteredTrainingSet = trainingSet;
+	    Instances filteredTestSet = testSet;
+	    if (featureSelection.equals("BEST FIRST")) {
+	        List<Instances> filteredSets = featureSelection(trainingSet, testSet);
+	        filteredTrainingSet = filteredSets.get(1);
+	        filteredTestSet = filteredSets.get(0);
+	    }
+	    return new Instances[]{filteredTrainingSet, filteredTestSet};
+	}
+	//nessuna applicazione del bilanciamento
+	public Evaluation trainAndEvaluateModel(String balancing, String classifier, String costEvaluation, Instances trainingSet, Instances testSet) throws Exception {
+	    Classifier classifierInstance = chooseClassificationType(classifier);
+	    if (balancing.equals("NO")) {
+	        // do nothing
+	    } else {
+	        classifierInstance = balancing(classifierInstance, balancing, trainingSet);
+	    }
+
+	    return evaluateModel(costEvaluation, classifierInstance, trainingSet, testSet);
+	}
+	//Iterazione di un loop su i dati di train e test con l'applicazione di FS, balancing e classification. 
+	//Per ogni iterazione i dati vengono salvati e si va avanti per ogni versione
+	public void walkForward(String featureSelection, String balancing, String costEvaluation, String classifier, List<Instances> sets, List<Measure> measures) throws Exception {
 	    for (int i = 1; i < sets.size(); i++) {
-	        Instances testSet = new Instances(sets.get(i));
-	        Instances trainingSet = createTrainingSet(sets, i);
-	        trainingSet.setClassIndex(trainingSet.numAttributes() - 1);
-	        testSet.setClassIndex(testSet.numAttributes() - 1);
-	        if ("BEST FIRST".equals(featureSelection)) {
-	            List<Instances> filteredSets = featureSelection(trainingSet, testSet);
-	            trainingSet = filteredSets.get(1);
-	            testSet = filteredSets.get(0);
-	        }
-	        Classifier classifierInstance = generateClassifier(classifier);
-	        if (!"NO".equals(balancing)) {
-	            classifierInstance = balancing(classifierInstance, balancing, trainingSet);
-	        }
-	        Evaluation evaluation = evaluateModel(costEvaluation, classifierInstance, trainingSet, testSet);
+	        Instances[] trainingAndTestSet = createTrainingAndTestSet(sets, i);
+	        Instances[] filteredTrainingAndTestSet = applyFeatureSelection(featureSelection, trainingAndTestSet[0], trainingAndTestSet[1]);
+	        Evaluation evaluation = trainAndEvaluateModel(balancing, classifier, costEvaluation, filteredTrainingAndTestSet[0], filteredTrainingAndTestSet[1]);
+
 	        String[] labels = {classifier, balancing, featureSelection, costEvaluation};
 	        if (evaluation == null) {
 	            logger.log(Level.INFO, "Errore valutando il modello");
 	        } else {
-	        	createMeasureObject(trainingSet, testSet, labels, projectName, version);
-	            evaluateAndAddMeasure(evaluation, trainingSet, testSet, labels, projectName, measures, version);
-	            version++;
-	            logger.info("sono qui 8");
+	            createMeasureObject(filteredTrainingAndTestSet[0], filteredTrainingAndTestSet[1], labels,  i - 1);
+	            evaluateAndAddMeasure(evaluation, filteredTrainingAndTestSet[0], filteredTrainingAndTestSet[1], labels, measures, i - 1);
 	        }
 	    }
 	}
 
-
+	//input = indice che specifica il set di test che verrà escluso dal set di addestramento.
+	// se la lista è vuota viene restituita istanza vuota
 	private Instances createTrainingSet(List<Instances> sets, int endIndex) {
-	    Instances train = new Instances(sets.get(0));
-	    logger.info("sono qui 9");
-	    for (int i = 1; i < endIndex; i++) {
-	        train.addAll(sets.get(i));
-	    }
-	    logger.info("sono qui 10");
-	    return train;
+	    Optional<Instances> merged = sets.stream()
+	            .limit(endIndex)
+	            .reduce((train, next) -> {
+	                Instances mergedSet = new Instances(train, 0);
+	                for (Instance instance : next) {
+	                    mergedSet.add(instance);
+	                }
+	                return mergedSet;
+	            });
+	    return merged.orElse(new Instances(sets.get(0), 0));
 	}
 
-
+	//copia istante train e test applica FS
 	public static List<Instances> applyFeatureSelection(AttributeSelection filter, Instances train, Instances test) throws Exception {
-		logger.info("sono qui 14");
-		Instances trainFiltered = new Instances(train);
-	    Instances testFiltered = new Instances(test);
-	    filter.setInputFormat(train);
-	    trainFiltered = Filter.useFilter(trainFiltered, filter);
-	    trainFiltered.setClassIndex(trainFiltered.numAttributes() - 1);
-	    testFiltered = Filter.useFilter(testFiltered, filter);
-	    testFiltered.setClassIndex(testFiltered.numAttributes() - 1);
-	    return Arrays.asList(testFiltered, trainFiltered);
-	}
+		Instances[] filteredData = new Instances[]{new Instances(train), new Instances(test)};
+		filter.setInputFormat(train);
+		for (int i = 0; i < filteredData.length; i++) {
+			filteredData[i] = Filter.useFilter(filteredData[i], filter);
+			filteredData[i].setClassIndex(filteredData[i].numAttributes() - 1);
+			}
+		return Arrays.asList(filteredData[1], filteredData[0]);
+		}
 	
 	public static List<Instances> featureSelection(Instances train, Instances test) throws Exception {
-		logger.info("sono qui 15");
-	    AttributeSelection filter = createFeatureSelectionFilter();
-	    return applyFeatureSelection(filter, train, test);
-	}
+		return applyFeatureSelection(createFeatureSelectionFilter(), train, test);
+		}
 
 
-
-	
+	//oversampling: aumento numero istanze della classe minoritaria
+	//undersampling: riduco numero istanze della classe maggioritaria
+	//smote: genero sinteticamente nuove istanze della classe minoritaria
 	private static Filter getBalancingFilter(String balancing, Instances train) throws Exception {
 	    Filter filter = null;
-	    logger.info("sono qui 16");
 	    if ("OVERSAMPLING".equals(balancing)) {
-	        filter = getResampleFilter(train, false, 0.1, 2 * getSampleSizePerc(train), new String[]{"-B", "1.0", "-Z", "130.3"});
+	        filter = getResampleFilter(train, false, 0.1, 2 * foundPerc(train), new String[]{"-B", "1.0", "-Z", "5"});
 	    } else if ("UNDERSAMPLING".equals(balancing)) {
 	        filter = getSpreadSubsampleFilter(train, new String[]{"-M", "1.0"});
 	    } else if ("SMOTE".equals(balancing)) {
@@ -201,9 +258,13 @@ public class weka{
 
 	    return filter;
 	}
-
+	//data: istanze su cui fare campionamento
+	//noReplacement: campionamento con o senza rimpiazzamento
+	//biasUniformClass: double indica importanza tra classe minoritaria e maggioritaria più è vicino a 1 più si da
+	//importanza alla classe minoritaria 
+	//sampleSizePercent: percentuale istanze da mantenere dopo campionamento
+	//options: array di stringhe per info aggiuntive
 	private static Resample getResampleFilter(Instances data, boolean noReplacement, double biasToUniformClass, double sampleSizePercent, String[] options) throws Exception {
-		logger.info("sono qui 17");
 		Resample resample = new Resample();
 	    resample.setNoReplacement(noReplacement);
 	    resample.setBiasToUniformClass(biasToUniformClass);
@@ -212,25 +273,22 @@ public class weka{
 	    resample.setInputFormat(data);
 	    return resample;
 	}
-
+	//filtro per sottocampionamento
 	private static SpreadSubsample getSpreadSubsampleFilter(Instances data, String[] options) throws Exception {
-		logger.info("sono qui 18");
 		SpreadSubsample spreadSubsample = new SpreadSubsample();
 	    spreadSubsample.setOptions(options);
 	    spreadSubsample.setInputFormat(data);
 	    return spreadSubsample;
 	}
-
+	//smote function
 	private static SMOTE getSMOTEFilter(Instances data) throws Exception {
-		logger.info("sono qui 19");
 		SMOTE smote = new SMOTE();
 	    smote.setInputFormat(data);
 	    return smote;
 	}
 
-
+	//applica filtro prima di passare i dati al classificatore
 	private static FilteredClassifier createFilteredClassifier(Classifier c, Filter filter) {
-		logger.info("sono qui 20");
 		FilteredClassifier fc = new FilteredClassifier();
 	    fc.setClassifier(c);
 	    if (filter != null) {
@@ -240,70 +298,91 @@ public class weka{
 	}
 
 	private static FilteredClassifier balancing(Classifier c, String balancing, Instances train) throws Exception {
-		logger.info("sono qui 21");
 		Filter filter = getBalancingFilter(balancing, train);
 	    return createFilteredClassifier(c, filter);
 	}
 
 	
-	
+	//sesitiveTreshold imposta matrice di costo specifica per le classi in modo da dare più peso alla class. di una classe
+	//sensitiveLearning imposta matrice di costo ed esegue reweight per dare più peso ad alcune istanze
 	private static Evaluation evaluateModel(String costEvaluation, Classifier c, Instances train, Instances test) {
-		logger.info("sono qui 22");
-		Evaluation ev = null;
-	    if (!costEvaluation.equals("NO")) {
-	        CostSensitiveClassifier c1 = new CostSensitiveClassifier();
-	        if (costEvaluation.equals("SENSITIVE THRESHOLD")) {
-	            c1.setMinimizeExpectedCost(true);
-	        } else if (costEvaluation.equals("SENSITIVE LEARNING")) {
-	            c1.setMinimizeExpectedCost(false);
-	            train = reweight(train);
-	        }
-	        c1.setClassifier(c);
-	        c1.setCostMatrix(createCostMatrix(10.0, 1.0));
-	        try {
-	            c1.buildClassifier(train);
-	            ev = new Evaluation(test, c1.getCostMatrix());
-	            ev.evaluateModel(c1, test);
-	        } catch (Exception e) {
-	            logger.log(Level.INFO, "Errore sensitiveness");
-	        }
-	    } else {
-	        try {
-	            c.buildClassifier(train);
-	            ev = new Evaluation(test);
-	            ev.evaluateModel(c, test);
-	        } catch (Exception e) {
-	            logger.log(Level.INFO, "Errore durante la valutazione del modello");
+	    Evaluation ev = null;
+
+	    for (String evalType : Arrays.asList("NO", SENSITIVE_THRESHOLD, SENSITIVE_LEARNING)) {
+	        if (evalType.equals(costEvaluation)) {
+	            try {
+	                switch (evalType) {
+	                    case "NO":
+	                        c.buildClassifier(train);
+	                        ev = new Evaluation(test);
+	                        ev.evaluateModel(c, test);
+	                        break;
+	                    case SENSITIVE_THRESHOLD:
+	                        CostSensitiveClassifier cst = new CostSensitiveClassifier();
+	                        cst.setClassifier(c);
+	                        cst.setCostMatrix(createCostMatrix(1.0, 10.0));
+	                        cst.setMinimizeExpectedCost(true);
+	                        cst.buildClassifier(train);
+	                        ev = new Evaluation(test, cst.getCostMatrix());
+	                        ev.evaluateModel(cst, test);
+	                        break;
+	                    case SENSITIVE_LEARNING:
+	                        CostSensitiveClassifier sl = new CostSensitiveClassifier();
+	                        sl.setClassifier(c);
+	                        sl.setCostMatrix(createCostMatrix(1.0, 10.0));
+	                        sl.setMinimizeExpectedCost(false);
+	                        Instances weightedTrain = reweight(train);
+	                        sl.buildClassifier(weightedTrain);
+	                        ev = new Evaluation(test, sl.getCostMatrix());
+	                        ev.evaluateModel(sl, test);
+	                        break;
+	                    default:
+	                    	logger.log(Level.WARNING, () -> "Tipo di valutazione non supportato: " + evalType);
+	                        break;
+	                }
+	            } catch (Exception e) {
+	                logger.log(Level.INFO, "Errore durante la valutazione del modello");
+	            }
+	            break;
 	        }
 	    }
+
+	    if (ev == null) {
+	        logger.log(Level.INFO, "Cost evaluation non valida");
+	    }
+
 	    return ev;
 	}
 
-
-	private static double getSampleSizePerc(Instances train) {
-		logger.info("sono qui 23");
-		double numOfBuggy = numOfBuggy(train);
+	//filtraggio bilanciato 
+	private static double foundPerc(Instances train) {
+	    double numOfBuggy = numOfBuggy(train);
 	    double nonnumOfBuggy = 1 - numOfBuggy;
-	    double majorityPercentage = Math.max(numOfBuggy, nonnumOfBuggy);
-	    double minorityPercentage = Math.min(numOfBuggy, nonnumOfBuggy);
-	    double sampleSizePerc = majorityPercentage * 100;
-	    if (majorityPercentage == nonnumOfBuggy) {
-	        sampleSizePerc = minorityPercentage * 100;
+	    double[] percentages = {numOfBuggy, nonnumOfBuggy};
+	    double maxPercentage = 0;
+	    for (double percentage : percentages) {
+	        if (percentage > maxPercentage) {
+	            maxPercentage = percentage;
+	        }
+	    }
+	    double sampleSizePerc = maxPercentage * 100;
+	    if (maxPercentage == nonnumOfBuggy) {
+	        double minPercentage = 1 - maxPercentage;
+	        sampleSizePerc = minPercentage * 100;
 	    }
 	    return sampleSizePerc;
 	}
 
-	
+
+	//percentuale buggy  = true
 	private static double numOfBuggy(Instances train) {
-		logger.info("sono qui 24");
 		int numBuggy = (int) train.stream()
 	            .filter(instance -> instance.stringValue(instance.classAttribute()).equals("true"))
 	            .count();
 	    return (double) numBuggy / train.size();
 	}
-
+	//peso assegnato alla matrice di costo
 	private static CostMatrix createCostMatrix(double weightFalsePositive, double weightFalseNegative) {
-		logger.info("sono qui 25");
 		CostMatrix costMatrix = new CostMatrix(2); 
 	    costMatrix.setCell(0, 0, 0.0); 
 	    costMatrix.setCell(1, 0, weightFalsePositive); 
@@ -312,186 +391,140 @@ public class weka{
 	    return costMatrix;
 	}
 
-
+	//aggiunge numero di istanze classe minoritaria
 	private static Instances reweight(Instances train) {
-		logger.info("sono qui 26");
-		Instances train2 = new Instances(train);
+	    int numNo = train.numInstances() - buggyCount(train);
+	    int numYes = buggyCount(train);
 
-	    double numNo = train.numInstances() - buggyCount(train);
-	    double numYes = buggyCount(train);
-
-	    if (numNo > numYes) {
-	        int oversampleRatio = calculateOversampleRatio(numNo, numYes);
-	        train2 = oversampleBuggyInstances(train, oversampleRatio);
+	    if (numNo <= numYes) {
+	        return train;
 	    }
 
-	    return train2;
-	}
+	    Instances oversampledTrain = new Instances(train);
+	    oversampledTrain.randomize(new Random());
+	    int i = 0;
 
-	private static int buggyCount(Instances data) {
-		logger.info("sono qui 27");
-		int count = 0;
-	    for (int i = 0; i < data.numInstances(); i++) {
-	        Instance instance = data.instance(i);
-	        if (instance.stringValue(instance.classIndex()).equals("true")) {
-	            count++;
-	        }
-	    }
-	    return count;
-	}
-
-	private static int calculateOversampleRatio(double numNo, double numYes) {
-		logger.info("sono qui 28");
-		return (int) Math.ceil(numNo / numYes);
-	}
-
-	private static Instances oversampleBuggyInstances(Instances data, int oversampleRatio) {
-		logger.info("sono qui 29");
-		Instances oversampledData = new Instances(data);
-	    for (int i = 0; i < data.numInstances(); i++) {
-	        Instance instance = data.instance(i);
-	        if (instance.stringValue(instance.classIndex()).equals("Yes")) {
-	            for (int j = 0; j < oversampleRatio - 1; j++) {
-	                oversampledData.add(instance);
+	    for (Instance inst : train) {
+	        oversampledTrain.add(inst);
+	        if (inst.classValue() == 1) {
+	            int timesToAdd = numNo / numYes - 1;
+	            for (int j = 0; j < timesToAdd; j++) {
+	                oversampledTrain.add(inst);
 	            }
+	            if (numNo % numYes > i) {
+	                oversampledTrain.add(inst);
+	            }
+	            i++;
 	        }
 	    }
-	    return oversampledData;
+
+	    return oversampledTrain;
 	}
+	//conta numero di buggy
+	private static int buggyCount(Instances data) {
+	    return (int) data.stream()
+	            .filter(instance -> instance.stringValue(instance.classIndex()).equals("true"))
+	            .count();
+	}
+
+	
 
 
 	//Metodo di controllo dell'applicativo
-	public static void computeAccuracy(String datasetPath, String projName) throws Exception {
-		logger.info("sono qui 30");
-		logger.info("Creando il file di output");
-		ArrayList<Instances> sets = getSets(datasetPath);
-		List<String> featureSelection = Arrays.asList("NO", "BEST FIRST");
-		List<String> balancing = Arrays.asList("NO", "UNDERSAMPLING", "OVERSAMPLING", "SMOTE");
-		List<String> costEvaluation = Arrays.asList("NO", "SENSITIVE THRESHOLD", "SENSITIVE LEARNING");
-		List<String> classifiers = Arrays.asList("RANDOM FOREST", "NAIVE BAYES", "IBK");
-		ArrayList<Measure> measures = new ArrayList<>();
-		weka v = new weka();
-		
-		for (int i = 0; i < featureSelection.size(); i++) {
-		    String f = featureSelection.get(i);
-		    for (int j = 0; j < balancing.size(); j++) {
-		        String b = balancing.get(j);
-		        for (int k = 0; k < costEvaluation.size(); k++) {
-		            String e = costEvaluation.get(k);
-		            for (int l = 0; l < classifiers.size(); l++) {
-		                String c = classifiers.get(l);
-		                v.walkForward(f, b, e, c, sets, measures, projName);
-		            }
-		        }
-		    }
-		}
-		printMeasures(projName, measures);
-		logger.info("File creato!");
+	public static void createFile(String path) throws Exception {
+	    logger.info("Creando il file di output");
+	    ArrayList<Instances> sets = ordering(path);
+	    List<List<String>> modelConfigs = getModelConfigurations();
+	    ArrayList<Measure> measures = computeMeasures(modelConfigs, sets);
+	    toCSV( measures);
+	    logger.info("File creato!");
+	}
+	public static List<List<String>> getModelConfigurations() {
+		return Arrays.asList("NO", "BEST FIRST").stream()
+		        .flatMap(fS -> Arrays.asList("NO", "UNDERSAMPLING", "OVERSAMPLING", "SMOTE").stream()
+		                .flatMap(b -> Arrays.asList("NO", SENSITIVE_THRESHOLD, SENSITIVE_LEARNING).stream()
+		                        .flatMap(cE -> Arrays.asList("RANDOM FOREST", "NAIVE BAYES", "IBK").stream()
+		                                .map(c -> Arrays.asList(fS, b, cE, c)))))   
+		        .collect(Collectors.toList());
+	}
+
+
+	    
+	public static ArrayList<Measure> computeMeasures(List<List<String>> modelConfigs, List<Instances> sets) throws Exception {
+	    ArrayList<Measure> measures = new ArrayList<>();
+	    weka v = new weka();
+
+	    for (List<String> config : modelConfigs) {
+	        String a = config.get(0);
+	        String b = config.get(1);
+	        String c = config.get(2);
+	        String d = config.get(3);
+
+	        v.walkForward(a, b, c, d, sets, measures);
+	    }
+
+	    return measures;
 	}
 	
-	//Ottengo una lista dove ogni elemento è l'insieme delle istanze divise per versione
-	private static ArrayList<Instances> getSets(String datasetPath) {
-		logger.info("sono qui 31");
-		Instances data = readData(datasetPath);
-	    ArrayList<Instances> sets = extractVersions(data);
-	    return sets;
+	//ordina istanze dataset in base alla versione
+	private static ArrayList<Instances> ordering(String path) throws Exception {
+	    Instances data = DataSource.read(path);
+	    data.sort(0);
+	    return extractVersions(data);
 	}
 
-	private static Instances readData(String datasetPath) {
-		logger.info("sono qui 32");
-		Instances data = null;
-	    try {
-	        data = DataSource.read(datasetPath);
-	        data.sort(0);
-	    } catch (Exception e) {
-	        logger.log(Level.INFO, "An error has occurred acquiring the dataset.");
-	    }
-	    return data;
-	}
+	
 
 	private static ArrayList<Instances> extractVersions(Instances data) {
-		logger.info("sono qui 33");
-		ArrayList<Instances> sets = new ArrayList<>();
-	    int numVersions = (int) data.lastInstance().value(0);
-	    for (int v = 1; v <= numVersions; v++) {
-	        Instances versionInstances = extractInstancesForVersion(data, v);
-	        sets.add(versionInstances);
-	    }
-	    return sets;
+	    return IntStream.rangeClosed(1, (int) data.lastInstance().value(0))
+	            .mapToObj(version -> extractInstancesForVersion(data, version))
+	            .collect(Collectors.toCollection(ArrayList::new));
 	}
 
 	private static Instances extractInstancesForVersion(Instances data, int version) {
-		logger.info("sono qui 34");
-		Instances versionInstances = new Instances(data, 0);
-	    for (int i = 0; i < data.numInstances(); i++) {
-	        Instance instance = data.instance(i);
-	        if ((int) instance.value(0) == version) {
-	            versionInstances.add(instance);
-	        }
-	    }
-	    return versionInstances;
+	    
+	    return data.stream()
+	            .filter(instance -> (int) instance.value(0) == version)
+	            .collect(Collectors.toCollection(() -> {
+	                Instances instances = new Instances(data, 0);
+	                instances.setRelationName("version_" + version);
+	                return instances;
+	            }));
 	}
 
 
 	
-	public static void printMeasures(String project, List<Measure> measures) {
-		logger.info("sono qui 35");
-		String outName = project + "Output.csv";
+	public static void toCSV(List<Measure> measures) {
+	    String outName = projectName + "Output.csv";
 	    
-	    try (FileWriter fileWriter = new FileWriter(outName)) {
-	        fileWriter.append("Dataset,#TrainingRelease,%Training,%Defective in training,%Defective in testing,Classifier,Balancing,Feature Selection,Sensitivity,TP,FP,TN,FN,Precision,Recall,AUC,Kappa");
-	        fileWriter.append("\n");
-	        for (Measure measure : measures) {
-	            writeMeasure(fileWriter, measure);
-	        }
+	    try (PrintWriter writer = new PrintWriter(new FileWriter(outName))) {
+	        writer.println("Dataset,#TrainingRelease,%Training,%Defective in training,%Defective in testing,Classifier,Balancing,Feature Selection,Sensitivity,TP,FP,TN,FN,Precision,Recall,AUC,Kappa");
+	        
+	        measures.forEach(measure -> createCSV(writer, measure));
+
 	    } catch (IOException e) {
 	        logger.log(Level.INFO, "Errore durante la scrittura del csv.");
 	    }
 	}
 
-	private static void writeMeasure(FileWriter fileWriter, Measure measure) throws IOException {
-		logger.info("sono qui 36");
-	    fileWriter.append(measure.getDataset());
-	    fileWriter.append(",");
-	    fileWriter.append(measure.getRelease().toString());
-	    fileWriter.append(",");
-	    fileWriter.append(measure.getTrainPercentage().toString());
-	    fileWriter.append(",");
-	    fileWriter.append(measure.getDefectInTrainPercentage().toString());
-	    fileWriter.append(",");
-	    fileWriter.append(measure.getDefectInTestPercentage().toString());
-	    fileWriter.append(",");
-	    fileWriter.append(measure.getClassifier());
-	    fileWriter.append(",");
-	    fileWriter.append(measure.getBalancing());
-	    fileWriter.append(",");
-	    fileWriter.append(measure.getFeatureSelection());
-	    fileWriter.append(",");
-	    fileWriter.append(measure.getSensitivity());
-	    fileWriter.append(",");
-	    fileWriter.append(measure.getTp().toString());
-	    fileWriter.append(",");
-	    fileWriter.append(measure.getFp().toString());
-	    fileWriter.append(",");
-	    fileWriter.append(measure.getTn().toString());
-	    fileWriter.append(",");
-	    fileWriter.append(measure.getFn().toString());
-	    fileWriter.append(",");
-	    fileWriter.append(measure.getPrecision().toString());
-	    fileWriter.append(",");
-	    fileWriter.append(measure.getRecall().toString());
-	    fileWriter.append(",");
-	    fileWriter.append(measure.getAuc().toString());
-	    fileWriter.append(",");
-	    fileWriter.append(measure.getKappa().toString());
-	    fileWriter.append("\n");
-		
+	private static void createCSV(PrintWriter writer, Measure measure)  {
+	    String[] fields = {measure.getDataset(), measure.getRelease().toString(), measure.getTrainPercentage().toString(),
+	        measure.getDefectInTrainPercentage().toString(), measure.getDefectInTestPercentage().toString(),
+	        measure.getClassifier(), measure.getBalancing(), measure.getFeatureSelection(), measure.getSensitivity(),
+	        measure.getTp().toString(), measure.getFp().toString(), measure.getTn().toString(), measure.getFn().toString(),
+	        measure.getPrecision().toString(), measure.getRecall().toString(), measure.getAuc().toString(),
+	        measure.getKappa().toString()};
 
+	    for (int i = 0; i < fields.length; i++) {
+	        writer.append(fields[i]);
+	        writer.append(",");
+	    }
+	    writer.append("\n");
 	}
 
+
 		
-	public static Classifier generateClassifier(String type) {
-		logger.info("sono qui 37");
+	public static Classifier chooseClassificationType(String type) {
 		Map<String, Supplier<Classifier>> classifierMap = new HashMap<>();
 	    classifierMap.put("RANDOM FOREST", RandomForest::new);
 	    classifierMap.put("NAIVE BAYES", NaiveBayes::new);
