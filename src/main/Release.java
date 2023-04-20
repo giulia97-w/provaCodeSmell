@@ -32,7 +32,7 @@ public class Release {
     private static Integer numVersions;
     private Integer id;
     private String name;
-    private LocalDateTime releaseDate;
+    private LocalDateTime productReleaseDate;
     private String rel;
     private List<RevCommit> commitList;
     private List <JavaFile> file;
@@ -65,7 +65,7 @@ public class Release {
     public Release(Integer versionID, LocalDateTime date, String rel)
     {
         this.id = versionID;
-        this.releaseDate = date;
+        this.productReleaseDate = date;
         this.rel = rel;
         this.commitList = new ArrayList<>();
         this.file = new ArrayList<>();
@@ -97,10 +97,10 @@ public class Release {
 
 
     public LocalDateTime getDate() {
-        return releaseDate;
+        return productReleaseDate;
     }
     public void setDate(LocalDateTime date) {
-        this.releaseDate = date;
+        this.productReleaseDate = date;
     }
 
     public Integer getIndex() {
