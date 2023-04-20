@@ -435,7 +435,7 @@ public class weka{
 	    logger.info("Creando il file di output");
 	    ArrayList<Instances> sets = ordering(path);
 	    List<List<String>> modelConfigs = getModelConfigurations();
-	    ArrayList<Measure> measures = computeMeasures(modelConfigs, sets);
+	    List<Measure> measures = computeMeasures(modelConfigs, sets);
 	    toCSV( measures);
 	    logger.info("File creato!");
 	}
@@ -450,21 +450,19 @@ public class weka{
 
 
 	    
-	public static ArrayList<Measure> computeMeasures(List<List<String>> modelConfigs, List<Instances> sets) throws Exception {
-	    ArrayList<Measure> measures = new ArrayList<>();
+	public static List<Measure> computeMeasures(List<List<String>> modelConfigs, List<Instances> sets) throws Exception {
+	    List<Measure> measures = new ArrayList<>();
 	    weka v = new weka();
-
 	    for (List<String> config : modelConfigs) {
 	        String a = config.get(0);
 	        String b = config.get(1);
 	        String c = config.get(2);
 	        String d = config.get(3);
-
 	        v.walkForward(a, b, c, d, sets, measures);
 	    }
-
 	    return measures;
 	}
+
 	
 	//ordina istanze dataset in base alla versione
 	private static ArrayList<Instances> ordering(String path) throws Exception {
