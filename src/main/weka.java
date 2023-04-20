@@ -51,7 +51,8 @@ public class weka{
 		String nomeFile = projectName1.toLowerCase() + "Dataset.csv" ;
 		String progetto =  " relativo al progetto " + projectName1;
 		String path = "/Users/giuliamenichini/eclipse-workspace/ISW2/" + nomeFile ;
-	    logger.info("Caricando dataset: " + nomeFile + progetto);
+		logger.info("Caricando dataset: " + nomeFile + " " + progetto);
+
 	    
 		createFile(path);
 		
@@ -435,9 +436,9 @@ public class weka{
 
 
 	//Metodo di controllo dell'applicativo
-	public static void createFile(String datasetPath) throws Exception {
+	public static void createFile(String path) throws Exception {
 	    logger.info("Creando il file di output");
-	    ArrayList<Instances> sets = ordering(datasetPath);
+	    ArrayList<Instances> sets = ordering(path);
 	    List<List<String>> modelConfigs = getModelConfigurations();
 	    ArrayList<Measure> measures = computeMeasures(modelConfigs, sets);
 	    toCSV( measures);
@@ -471,8 +472,8 @@ public class weka{
 	}
 	
 	//ordina istanze dataset in base alla versione
-	private static ArrayList<Instances> ordering(String datasetPath) throws Exception {
-	    Instances data = DataSource.read(datasetPath);
+	private static ArrayList<Instances> ordering(String path) throws Exception {
+	    Instances data = DataSource.read(path);
 	    data.sort(0);
 	    return extractVersions(data);
 	}
