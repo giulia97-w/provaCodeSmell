@@ -325,10 +325,11 @@ public class MainClass {
     	av.add(0);
     	ticket.setAffectedVersion(av);
     	ticket.setInjectedVersion(0);
-    	if (ticket.getFixedVersion() == ticket.getInjectedVersion()) {
+    	if (ticket.getFixedVersion().equals(ticket.getInjectedVersion())) {
     		ticket.getAffectedVersion().clear();
     	}
     }
+
 
 
 

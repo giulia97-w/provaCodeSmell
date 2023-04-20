@@ -163,6 +163,9 @@ public class Release {
         Integer i;
         String url = "https://issues.apache.org/jira/rest/api/2/project/" + projName;
         JSONObject json = readJsonFromUrl(url);
+        if (json == null) {
+            throw new JSONException("Failed to retrieve JSON data from the specified URL");
+        }
         JSONArray versions = json.getJSONArray("versions");
         releasesNames = new HashMap<>();
         releasesID = new HashMap<>();
