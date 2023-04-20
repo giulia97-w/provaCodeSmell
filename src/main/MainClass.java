@@ -1044,39 +1044,44 @@ public class MainClass {
 
         public static void injectedProportion(List<Ticket> newProportionTicket, Ticket ticket) {
             float p = calculateP(newProportionTicket);
-            int avgPFloor = calculateAvgPFloor(p);
-            int predictedIv = calculatePredictedIv(ticket, avgPFloor);
+            int pNew = calculatepNew(p);
+            int predictedIv = calculatePredictedIv(ticket, pNew);
             ticket.setInjectedVersion(Math.min(predictedIv, ticket.getOpenVersion()));
         }
 
         private static float calculateP(List<Ticket> newProportionTicket) {
-            return newProportionTicket.stream()
-                                      .map(ticket -> obtainingP(ticket))
-                                      .reduce(0f, (a, b) -> a + b);
-        }
+        	return newProportionTicket.stream()
+        	.map(MainClass::obtainingP)
+        	.reduce(0f, Float::sum);
+        	}
 
 
 
-        private static int calculateAvgPFloor(float p) {
+
+
+        private static int calculatepNew(float p) {
             return (int) Math.floor(p / movingWindows);
         }
 
-        private static int calculatePredictedIv(Ticket ticket, int avgPFloor) {
+        private static int calculatePredictedIv(Ticket ticket, int pNew) {
             int fv = ticket.getFixedVersion();
             int ov = ticket.getOpenVersion();
-            return fv == ov ? ov : (int) (fv - (fv - ov) * avgPFloor);
+            return fv == ov ? ov : (int) (fv - (fv - ov) * pNew);
         }
 
 
 
-        public static void injectedProportion1(List<Ticket> newProportionTicket,Ticket ticket){
+        public static void injectedProportion1(List<Ticket> newProportionTicket, Ticket ticket) {
             float p = calculateP(newProportionTicket);
-            int avgPFloor = calculateAverageIV(p);
+            int pNew = calculateAverageIV(p);
             int fv = ticket.getFixedVersion();
             int ov = ticket.getOpenVersion();
-            int predictedIv = fv-(fv-ov)*avgPFloor;
+            int predictedIv = IntStream.of(fv, ov)
+                    .reduce((a, b) -> fv - (fv - ov) * pNew)
+                    .orElse(ov);
             ticket.setInjectedVersion(Math.min(predictedIv, ov));
         }
+
 
 
         private static int calculateAverageIV(float p) {
