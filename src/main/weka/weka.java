@@ -90,7 +90,6 @@ public class weka{
 	            Method method = Measure.class.getMethod(fields[i], String.class);
 	            method.invoke(m, s[i]);
 	        } catch (Exception e) {
-	            e.printStackTrace();
 	        }
 	    }
 
