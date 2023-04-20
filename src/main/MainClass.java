@@ -39,6 +39,7 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.*;
+import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -885,10 +886,12 @@ public class MainClass {
 		        try {
 		            verify(ticket, releases);
 		        } catch (IOException e) {
-		            logger.log(Level.SEVERE, "Error occurred while verifying ticket " + ticket.getTicketID(), e);
+		            logger.log(Level.SEVERE, (Supplier<String>) () -> "Error occurred while verifying ticket " + ticket.getTicketID());
 		        }
 		    });
 		}
+
+
 
 
 
