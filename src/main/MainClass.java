@@ -371,7 +371,8 @@ public class MainClass {
     }
 
     public static void createCSV(List<Release> releases, String projectName) {
-        try (BufferedWriter writer = Files.newBufferedWriter(Paths.get(projectName.toLowerCase() + "Dataset.csv"))) {
+    	String fileName = "Dataset.csv";
+        try (BufferedWriter writer = Files.newBufferedWriter(Paths.get(projectName.toLowerCase() + fileName))) {
             // Creazione del file CSV e scrittura dell'intestazione.
             writer.write("RELEASE,FILENAME,SIZE,LOC_added,MAX_LOC_Added,AVG_LOC_Added,CHURN,MAX_Churn,AVG_Churn,NR,NAUTH,BUGGYNESS\n");
 
@@ -410,12 +411,13 @@ public class MainClass {
     	String endPath = "/." + nameGit ;
     	
     	String name = "giuliamenichini";
-    	String percorso = "/Users/" + name + "/";
-    	String uriOpenjpa = "/Users/giuliamenichini/eclipse-workspace/ISW2/" +PROJECT1+ "Dataset.csv";
-    	String uriBookkeeper = "/Users/giuliamenichini/eclipse-workspace/ISW2/" +PROJECT+ "Dataset.csv";
+    	String percorso = "/Users/" + name + "/eclipse-workspace/ISW2/";
+    	
+    	String uriOpenjpa = percorso +PROJECT1+ "Dataset.csv";
+    	String uriBookkeeper = percorso +PROJECT+ "Dataset.csv";
 
-    	String uriArffOpenjpa = "/Users/giuliamenichini/eclipse-workspace/ISW2/" +PROJECT1+"Dataset.arff";
-    	String uriArffBookkeeper = "/Users/giuliamenichini/eclipse-workspace/ISW2/"+PROJECT+"Dataset.arff";
+    	String uriArffOpenjpa = percorso +PROJECT1+"Dataset.arff";
+    	String uriArffBookkeeper = percorso+PROJECT+"Dataset.arff";
 
         releasesListBookkeeper = Release.getListRelease(PROJECT);
         releasesListOpenjpa = Release.getListRelease(PROJECT1);
@@ -564,13 +566,6 @@ public class MainClass {
             churn(diffInfo.getFileList(), fileName, diffInfo.getAuthName(), diffInfo.getDiffEntry(), diffInfo.getDiff());
         }
     }
-
-
-
-
-   
-
-
 
 //da rivedere
     public static void churn(List<JavaFile> fileList, String fileName, String authName, DiffEntry diffEntry, DiffFormatter diff) {
