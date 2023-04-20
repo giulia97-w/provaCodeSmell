@@ -883,7 +883,6 @@ public class MainClass {
 					verify(ticket, releases);
 				} catch (IOException e) {
 					
-					e.printStackTrace();
 				}
 			});
         }
