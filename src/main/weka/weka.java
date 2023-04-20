@@ -5,6 +5,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.lang.reflect.Method;
+import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -401,8 +402,9 @@ public class weka{
 	    }
 
 	    Instances oversampledTrain = new Instances(train);
-	    Random random = new Random();
-	    random.setSeed(12345L);
+	    SecureRandom random = new SecureRandom();
+	    
+	    
 	    oversampledTrain.randomize(random);
 
 	    int i = 0;
