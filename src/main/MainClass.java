@@ -54,7 +54,7 @@ public class MainClass {
 	
 	static String name = "giuliamenichini";
 	static String percorso = "/Users/" + name + "/";
-	public static final String PATH = System.getProperty("user.dir") + "/";
+	public static final String PATH = System.getProperty("user.dir");
 	public static final String DATASET_FILENAME = "Dataset.csv";
 	public static final String URI_OPENJPA = PATH + PROJECT1 + DATASET_FILENAME;
 	public static final String URI_BOOKKEEPER = PATH + PROJECT1 + DATASET_FILENAME;
