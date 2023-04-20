@@ -401,7 +401,10 @@ public class weka{
 	    }
 
 	    Instances oversampledTrain = new Instances(train);
-	    oversampledTrain.randomize(new Random());
+	    Random random = new Random();
+	    random.setSeed(12345L);
+	    oversampledTrain.randomize(random);
+
 	    int i = 0;
 
 	    for (Instance inst : train) {
