@@ -361,7 +361,8 @@ public class MainClass {
     //se FV <= OV 
     private static void handleOVNotEquals1(Ticket ticket) {        
 
-        if (ticket.getFixedVersion() == ticket.getOpenVersion()) { 
+    	if (ticket.getFixedVersion().equals(ticket.getOpenVersion())) {
+    	
             handleOVLessThanFV(ticket);
         } else { 
             handleOVMoreThanFV(ticket);
