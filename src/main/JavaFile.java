@@ -54,12 +54,12 @@ public class JavaFile {
     
     public JavaFile(String nome) {
         this.nome = nome;
-        this.linesOfCodeAddedList = new ArrayList<Integer>();
-        this.linesOfCodeTouchedList = new ArrayList<Integer>();
-        this.churnList = new ArrayList<Integer>();
-        this.locTouchedList = new ArrayList<Integer>();
-        this.oldPaths = new ArrayList<String>();
-        this.nAuth = new ArrayList<String>();
+        this.linesOfCodeAddedList = new ArrayList<>();
+        this.linesOfCodeTouchedList = new ArrayList<>();
+        this.churnList = new ArrayList<>();
+        this.locTouchedList = new ArrayList<>();
+        this.oldPaths = new ArrayList<>();
+        this.nAuth = new ArrayList<>();
     }
 
 
@@ -131,10 +131,7 @@ public class JavaFile {
 
     public Integer getChurn() {
         if (churn == null) {
-            // handle null value
-            return 0; // return default value
-            // or throw an exception to indicate that the value is not available
-            // throw new NullPointerException("Churn value is null");
+            return 0; 
         } else {
             return churn;
         }
@@ -225,8 +222,8 @@ public class JavaFile {
     }
 
 
-    public void setlinesOfCodeAddedList(List<Integer> linesOfCodeAddedList) {
-        this.linesOfCodeAddedList = linesOfCodeAddedList;
+    public void setlinesOfCodeAddedList(List<Integer> list) {
+        this.linesOfCodeAddedList = list;
     }
     
     public void setlinesOfCodeTouchedList(List<Integer> linesOfCodeTouchedList) {

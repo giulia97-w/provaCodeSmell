@@ -421,8 +421,8 @@ public class MainClass {
         linkFunction();
         removeObsoleteReleasesAndTickets(releasesListBookkeeper, ticketListBookkeeper);
         checkTicketBookkeeper(); 
-        FileRepositoryBuilder repositoryBuilder = new FileRepositoryBuilder();
-        repository = repositoryBuilder.setGitDir(new File(percorso + PROJECT.toLowerCase() + endPath)).readEnvironment().findGitDir().setMustExist(true).build();
+        FileRepositoryBuilder repositoryBuilderBookkeeper = new FileRepositoryBuilder();
+        repository = repositoryBuilderBookkeeper.setGitDir(new File(percorso + PROJECT.toLowerCase() + endPath)).readEnvironment().findGitDir().setMustExist(true).build();
         logger.log(Level.INFO, "Numero ticket = {0}.", ticketListBookkeeper.size());
         Collections.reverse(ticketListBookkeeper); 
         findProportion(ticketListBookkeeper);
@@ -436,9 +436,11 @@ public class MainClass {
         //openjpa
         linkFunction();
         removeObsoleteReleasesAndTickets(releasesListOpenjpa, ticketListOpenjpa);
-        checkTicketOpenjpa(); 
-        repository = repositoryBuilder.setGitDir(new File(percorso + PROJECT1.toLowerCase() + endPath)).readEnvironment().findGitDir().setMustExist(true).build();
+        checkTicketOpenjpa();
+        FileRepositoryBuilder repositoryBuilderOpenjpa = new FileRepositoryBuilder();
 
+        repository = repositoryBuilderOpenjpa.setGitDir(new File(percorso + PROJECT1.toLowerCase() + endPath)).readEnvironment().findGitDir().setMustExist(true).build();
+              
         logger.log(Level.INFO, "Numero ticket = {0}.", ticketListOpenjpa.size());
         Collections.reverse(ticketListOpenjpa);
         findProportion(ticketListOpenjpa);
@@ -1011,10 +1013,17 @@ public class MainClass {
 
 
       
+        public static void setBuilder(String repo) throws IOException {
+            FileRepositoryBuilder repositoryBuilder = new FileRepositoryBuilder();
+            repository = repositoryBuilder.setGitDir(new File(repo)).readEnvironment() // scan environment GIT_* variables
+                    .findGitDir() // scan up the file system tree
+                    .setMustExist(true).build();
+        
+    }
         
         public static Integer afterBeforeDate(LocalDateTime date, List<Release> releases) {
             return IntStream.range(0, releases.size())
-                .mapToObj(i -> releases.get(i))
+                .mapToObj(releases::get)
                 .filter(release -> date.isBefore(release.getDate()) || date.isEqual(release.getDate()))
                 .findFirst()
                 .orElse(releases.get(releases.size() - 1))
