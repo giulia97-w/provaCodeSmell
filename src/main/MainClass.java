@@ -32,7 +32,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.lang.reflect.Method;
+import java.lang.reflect.InvocationTargetException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -406,7 +406,7 @@ public class MainClass {
    
     
 
-    public static void main(String[] args) throws IllegalStateException, GitAPIException, IOException, JSONException {
+    public static void main(String[] args) throws IllegalStateException, GitAPIException, IOException, JSONException, NoSuchMethodException, IllegalAccessException, IllegalArgumentException, InvocationTargetException, SecurityException {
     	
     	
         releasesListBookkeeper = Release.getListRelease(PROJECT);
@@ -803,7 +803,7 @@ public class MainClass {
             return git;
         }
 
-     private static void getJavaFilesForRelease(Git git, Release release) throws IOException {
+     private static void getJavaFilesForRelease(Git git, Release release) throws IOException,NoSuchMethodException, IllegalAccessException, IllegalArgumentException, InvocationTargetException, SecurityException {
     	    List<String> javaFileNames = new ArrayList<>();
 
     	    for (RevCommit commit : release.getCommitList()) {
@@ -816,7 +816,7 @@ public class MainClass {
     	    }
     	}
 
-    	private static void analyzeTreeWalk(Repository repository, RevTree tree, Release release, List<String> javaFileNames) throws IOException {
+    	private static void analyzeTreeWalk(Repository repository, RevTree tree, Release release, List<String> javaFileNames) throws IOException, NoSuchMethodException, IllegalAccessException, IllegalArgumentException, InvocationTargetException, SecurityException {
     	    try (TreeWalk treeWalk = new TreeWalk(repository)) {
     	        treeWalk.addTree(tree);
     	        treeWalk.setRecursive(true);
@@ -833,7 +833,7 @@ public class MainClass {
 
 
 
-     public static void getJavaFiles(Path repoPath, List<Release> releasesList) throws IOException, IllegalStateException, GitAPIException {
+     public static void getJavaFiles(Path repoPath, List<Release> releasesList) throws IOException, IllegalStateException, GitAPIException, NoSuchMethodException, IllegalAccessException, IllegalArgumentException, InvocationTargetException, SecurityException {
             Git git = initGitRepository(repoPath);
 
             for (Release release : releasesList) {
@@ -862,7 +862,7 @@ public class MainClass {
 
 
 //da rivedere
-     private static void addJavaFile(TreeWalk treeWalk, Release release, List<String> fileNameList) throws IOException {
+     private static void addJavaFile(TreeWalk treeWalk, Release release, List<String> fileNameList) throws IOException, IllegalAccessException, IllegalArgumentException, InvocationTargetException, NoSuchMethodException, SecurityException {
             while (treeWalk.next()) {
                 if (treeWalk.isSubtree() || !treeWalk.getPathString().endsWith(ENDFILE)) {
                     continue;
@@ -884,22 +884,46 @@ public class MainClass {
 
      
      private static void setDefaultJavaFileAttributes(TreeWalk treeWalk, JavaFile file) throws IOException {
-    	    String[] attributes = {"Buggyness", "linesOfCodeadded", "linesOfCodeAddedList", "Churn", "ChurnList", "LocTouched", "Nr", "NAuth", "locTouchedList"};
-    	    Object[] defaultValues = {"false", 0, new ArrayList<>(), 0, new ArrayList<>(), 0, 0, new ArrayList<>(), new ArrayList<>()};
-    	    
-    	    for (int i = 0; i < attributes.length; i++) {
-    	        try {
-    	            Method setter = JavaFile.class.getMethod("set" + attributes[i], defaultValues[i].getClass());
-    	            setter.invoke(file, defaultValues[i]);
-    	        } catch (Exception e) {
-    	            
-    	        }
-    	    }
-    	    
-    	    // Calcola la dimensione del file in linee di codice
-    	    int loc = calculateLinesOfCode(treeWalk);
-    	    file.setlinesOfCode(loc);
+    	// Inizializza le proprietà di JavaFile utilizzando un ciclo for-each
+    	for (String property : Arrays.asList("Buggyness", "Nr", "NAuth", "linesOfCodeadded",
+    			"linesOfCodeAddedList", "Churn", "ChurnList", "LocTouched", "locTouchedList")) {
+    	switch (property) {
+    		case "Buggyness":
+    			file.setBuggyness("false");
+    			break;
+    		case "Nr":
+    			file.setNr(0);
+    			break;
+    		case "NAuth":
+    			file.setNAuth(new ArrayList<>());
+    			break;
+    		case "linesOfCodeadded":
+    			file.setlinesOfCodeadded(0);
+    			break;
+    		case "linesOfCodeAddedList":
+    			file.setlinesOfCodeAddedList(new ArrayList<>());
+    			break;
+    		case "Churn":
+    			file.setChurn(0);
+    		break;
+    		case "ChurnList":
+    			file.setChurnList(new ArrayList<>());
+    			break;
+    		case "LocTouched":
+    			file.setLocTouched(0);
+    			break;
+    		case "locTouchedList":
+    			file.setlocTouchedList(new ArrayList<>());
+    			break;
+    		default:
+    			break;
+    		}
     	}
+    	// Calcola la dimensione del file in linee di codice
+    	int loc = calculateLinesOfCode(treeWalk);
+    		file.setlinesOfCode(loc);
+    	}
+
 
 
      private static int calculateLinesOfCode(TreeWalk treeWalk) throws IOException {
