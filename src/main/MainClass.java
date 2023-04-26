@@ -68,12 +68,15 @@ public class MainClass {
 
 	private static final String ENDFILE = ".java";
 	private static final String DELETE = "DELETE";
-	
+	//scrittura file su stringa 
 	private static void update(BufferedWriter fileWriter, Release release, JavaFile file) throws IOException {
 	    StringBuilder sb = new StringBuilder();
 	    sb.append(release.getIndex()).append(",");
 	    sb.append(file.getName()).append(",");
+	    
 	    sb.append(file.getlinesOfCode()).append(",");
+	    sb.append(file.getLocTouched()).append(",");
+
 	    sb.append(file.getlinesOfCodeadded()).append(",");
 
 	    // ciclo for per scrivere i valori massimi e medi di linesOfCodeAddedList
@@ -109,23 +112,23 @@ public class MainClass {
 	    fileWriter.write(sb.toString());
 	    fileWriter.flush();
 	}
-
+	
     private static void linkFunction() {
     	linkage();
         setResolutionDateAndFVBookkeeper();
         setResolutionDateAndFVOpenjpa();
         removeUnlinkedTickets();
     }
-
+    //restituisce data del commit
     private static LocalDateTime getCommitDate(RevCommit commit) {
         Instant commitInstant = Instant.ofEpochSecond(commit.getAuthorIdent().getWhen().getTime());
         return LocalDateTime.ofInstant(commitInstant, ZoneId.systemDefault());
     }
-
+    //aggiunge il commit alla lista dei commit
     private static void addCommitToTicket(Ticket ticket, RevCommit commit) {
         ticket.getCommitList().add(commit);
     }
-    
+    //restituisce lista di date dei commit associate al ticket
     private static ArrayList<LocalDateTime> findCommitDatesForTicket(Ticket ticket, List<RevCommit> commitList) {
         ArrayList<LocalDateTime> commitDateList = new ArrayList<>();
 
@@ -142,13 +145,15 @@ public class MainClass {
     }
 
 
-
+    //aggiorna la lista dei committ associati ai ticket per il progetto bookkeeper
     private static void updateTicketCommitDatesBookkeeper() {
         for (Ticket ticket : ticketListBookkeeper) {
             ArrayList<LocalDateTime> commitDateList = findCommitDatesForTicket(ticket, commitListBookkeeper);
             ticket.setCommitDateList(commitDateList);
         }
     }
+    //aggiorna la lista dei committ associati ai ticket per il progetto openjpa
+
     private static void updateTicketCommitDatesOpenjpa() {
         for (Ticket ticket : ticketListOpenjpa) {
             ArrayList<LocalDateTime> commitDateList = findCommitDatesForTicket(ticket, commitListOpenjpa);
@@ -162,7 +167,7 @@ public class MainClass {
     }
 
 
-
+    //aggiorna data di risoluzione e la versione fixed version per ogni ticket
     private static void setResolutionDateAndFVBookkeeper() {
         for (Ticket ticket : ticketListBookkeeper) {
             ArrayList<LocalDateTime> commitDateList = ticket.getCommitList().stream()
@@ -194,7 +199,7 @@ public class MainClass {
                 ticket.setFixedVersion(afterBeforeDate(resolutionDate, releasesListOpenjpa));
             }); }
     }
-
+    //rimuove ticket che non sono stati associati a nessun commit
     private static void removeUnlinkedTickets() {
         ticketListBookkeeper.removeIf(ticket -> ticket.getResolutionDate() == null);
         ticketListOpenjpa.removeIf(ticket -> ticket.getResolutionDate() == null);
@@ -203,7 +208,7 @@ public class MainClass {
 
     
 
-
+    //rimuove la metà della lista delle release assieme ai ticket associati alle release rimosse
     public static void removeReleaseBeforeHalf(List<Release> releasesList, List<Ticket> ticketList) {
         float releaseNumber = releasesList.size();
         int halfRelease = (int) Math.floor(releaseNumber / 2);
@@ -214,7 +219,7 @@ public class MainClass {
         // remove unresolved tickets and set the AV resolution
         filterTickets(halfRelease, ticketList);
     }
-
+    //rimuove la release successiva a quella specificata nella metà della lista delle release
     private static void removeReleasesAfterHalfPoint(List<Release> releases, int releaseNew) {
         for (Release release : new ArrayList<>(releases)) {
             if (release.getIndex() > releaseNew) {
@@ -223,7 +228,8 @@ public class MainClass {
         }
     }
 
-
+    //filtra i ticket sulla base del numero di versione. Rimuove i ticket in cui IV è successiva alla 
+    //release specificata in cui resolution date è null o in cui la fixed version è successiva alla release specificata
     private static void filterTickets(int release, List<Ticket> tickets) {
         tickets.removeIf(ticket -> ticket.getInjectedVersion() > release || 
                                    ticket.getResolutionDate() == null ||
@@ -231,19 +237,19 @@ public class MainClass {
     }
 
 
-
+    //importa AV come versioni tra IV e FV
     public static void affectedVersion(int release, List<Ticket> ticket) {
         removeTickets(release, ticket);
         setAffectedVersionTicketsBookkeeper(release);
         setAffectedVersionTicketsOpenjpa(release);
     }
-
+    //rimuove i ticket in cui IV è maggiore della release
     private static void removeTickets(int release, List<Ticket> tickets) {
         tickets.removeIf(ticket -> ticket.getInjectedVersion() > release);
     }
 
 
-
+    //setta AV
     private static void setAffectedVersionTicketsBookkeeper(int release) {
         ticketListBookkeeper.stream()
                             .filter(t -> t.getOpenVersion() > release || t.getFixedVersion() > release)
@@ -267,7 +273,7 @@ public class MainClass {
                             });
     }
 
-
+    //verifica che vengano rispettate determinate condizioni e setta AV
     public static void checkTicketBookkeeper() {
         ticketListBookkeeper.stream()
             .filter(ticket -> ticket.getInjectedVersion() != 0)
@@ -305,7 +311,7 @@ public class MainClass {
     }
 
 
-
+    //gestisce OV, se è uguale a 1
     private static void handleOV(Ticket ticket) {
         if (ticket.getOpenVersion() == 1) {
             handleOVEquals1(ticket);
@@ -315,12 +321,12 @@ public class MainClass {
     }
 
 
-
+    //verifica ordinamento ticket in base alla IV OV e FV
     private static boolean ordering(Ticket ticket) {
         return ticket.getFixedVersion() > ticket.getInjectedVersion() && ticket.getOpenVersion() >= ticket.getInjectedVersion();
     }
 
-
+    //importa la AV 0 se FV = IV
     private static void setErrorTicket(Ticket ticket) {
     	List<Integer> av = new ArrayList<>();
     	av.add(0);
@@ -333,7 +339,7 @@ public class MainClass {
 
 
 
-
+    //se FV = 1 AV = 0 altrimenti AV = [IV,FV]
     private static void handleOVEquals1(Ticket ticket) {
     	ticket.setInjectedVersion(1);
     	if (ticket.getFixedVersion() == 1) {
@@ -345,7 +351,7 @@ public class MainClass {
 		    	ticket.setAffectedVersion(avList);
     	}
     	}
-
+    //se IV = OV AV = FV - OV se OV > FV -> clear
     private static void handleOVLessThanFV(Ticket ticket) {
         ticket.setInjectedVersion(ticket.getOpenVersion()); 
         int numAV = ticket.getFixedVersion() - ticket.getOpenVersion(); 
@@ -355,7 +361,7 @@ public class MainClass {
         }
     }
 
-
+    //set AV
     private static void handleOVMoreThanFV(Ticket ticket) {
         int targetInjectedVersion = ticket.getInjectedVersion();
         OptionalInt validIV = IntStream.rangeClosed(targetInjectedVersion, ticket.getFixedVersion() - 1)
@@ -372,25 +378,25 @@ public class MainClass {
         }
     }
 
-
+    //se FV <= OV 
     private static void handleOVNotEquals1(Ticket ticket) {        
 
-        if (ticket.getFixedVersion() <= ticket.getOpenVersion()) { 
+        if (ticket.getFixedVersion() == ticket.getOpenVersion()) { 
             handleOVLessThanFV(ticket);
         } else { 
             handleOVMoreThanFV(ticket);
         }
     }
-
+    //controllo che IV >=1 e IV <= OV e IV <= FV
     private static boolean isIVValid(Ticket ticket, int injectedVersion) {
-        return injectedVersion >= 1 && injectedVersion <= ticket.getOpenVersion() && injectedVersion <= ticket.getFixedVersion();
+        return injectedVersion >= 1 && injectedVersion < ticket.getOpenVersion() && injectedVersion <= ticket.getFixedVersion();
     }
 
     public static void createCSV(List<Release> releases, String projectName) {
     	String fileName = DATASET_FILENAME;
         try (BufferedWriter writer = Files.newBufferedWriter(Paths.get(projectName.toLowerCase() + fileName))) {
             // Creazione del file CSV e scrittura dell'intestazione.
-            writer.write("RELEASE,FILENAME,SIZE,LOC_added,MAX_LOC_Added,AVG_LOC_Added,CHURN,MAX_Churn,AVG_Churn,NR,NAUTH,BUGGYNESS\n");
+            writer.write("RELEASE,FILENAME,SIZE,LOC_TOUCHED,LOC_added,MAX_LOC_Added,AVG_LOC_Added,CHURN,MAX_Churn,AVG_Churn,NR,NAUTH,BUGGYNESS\n");
 
             // Scrittura dei dati relativi a ciascun file per ogni release.
             for (Release release : releases) {
@@ -580,9 +586,10 @@ public class MainClass {
                 deletedLines += edit.getLengthA();
             }
             int churn = calculateChurn(addedLines, deletedLines);
+            int locTouched = calculatelocTouched(addedLines,deletedLines);
             DiffInfo diffInfo = new DiffInfo(diffEntry, diffEntry.getChangeType().toString(), authName, fileList, diff);
             diffInfo.setFileName(fileName);
-            fileList(fileList, diffInfo.getFileName(), authName, addedLines, churn);
+            fileList(fileList, diffInfo.getFileName(), authName, addedLines, churn, locTouched);
         } catch (IOException e) {
             logger.log(Level.SEVERE, "Errore nel calcolo delle linee aggiunte ed eliminate", e);
         }
@@ -599,20 +606,33 @@ public class MainClass {
         return churn;
     }
 
+    
+    
 
-    private static void fileList(List<JavaFile> fileList, String fileName, String authName, int locAdded, int churn) {
+
+    private static int calculatelocTouched(int addedLines, int deletedLines) {
+    	int churn = 0;
+        if (addedLines > deletedLines) {
+            churn = addedLines + deletedLines;
+        } else if (deletedLines > addedLines) {
+            churn = +(deletedLines + addedLines);
+        }
+        return churn;
+    }
+
+    private static void fileList(List<JavaFile> fileList, String fileName, String authName, int locAdded, int churn, int locTouched) {
         Optional<JavaFile> foundFile = fileList.stream().filter(file -> file.getName().equals(fileName)).findFirst();
         
         if (foundFile.isPresent()) {
-            existingFile(foundFile.get(), authName, locAdded, churn);
+            existingFile(foundFile.get(), authName, locAdded, churn, locTouched);
         } else {
-            addNewFile(fileList, fileName, authName, locAdded, churn);
+            addNewFile(fileList, fileName, authName, locAdded, churn, locTouched);
         }
     }
 
 
 
-    private static void existingFile(JavaFile file, String authName,  int locAdded, int churn) {
+    private static void existingFile(JavaFile file, String authName,  int locAdded, int churn, int locTouched) {
         file.setNr(file.getNr() + 1);
         if (!file.getNAuth().contains(authName)) {
             file.getNAuth().add(authName);
@@ -622,11 +642,13 @@ public class MainClass {
         
         file.setChurn(file.getChurn() + churn);
         addToChurnList(file, churn);
+        file.setLocTouched(file.getLocTouched() + locTouched);
+        addToChurnList1(file, locTouched);
     }
 
-    private static void addNewFile(List<JavaFile> fileList, String fileName, String authName,  int locAdded, int churn) {
+    private static void addNewFile(List<JavaFile> fileList, String fileName, String authName,  int locAdded, int churn, int locTouched) {
         JavaFile javaFile = new JavaFile(fileName);
-        setMetrics(javaFile,  locAdded, churn, fileList, authName);
+        setMetrics(javaFile,  locAdded, churn, fileList, authName, locTouched);
     }
     private static void addToLocAddedList(JavaFile file, int locAdded) {
     	file.getlinesOfCodeAddedList().add(locAdded);
@@ -635,6 +657,10 @@ public class MainClass {
     private static void addToChurnList(JavaFile file, int churn) {
     file.getChurnList().add(churn);
     }
+    
+    private static void addToChurnList1(JavaFile file, int locTouched) {
+        file.getLocTouchedList().add(locTouched);
+        }
 
 
     private static void setNr(JavaFile javaFile) {
@@ -658,15 +684,23 @@ public class MainClass {
         churnList.add(churn);
         javaFile.setChurnList(churnList);
     }
+    private static void setLocTouched(JavaFile javaFile, int churn) {
+        javaFile.setLocTouched(churn);
+        List<Integer> churnList = new ArrayList<>();
+        churnList.add(churn);
+        javaFile.setlocTouchedList(churnList);
+    }
     private static void addToFileList(List<JavaFile> fileList, JavaFile javaFile) {
         fileList.add(javaFile);
     }
-    public static void setMetrics(JavaFile javaFile, int locAdded, int churn, List<JavaFile> fileList, String authName) {
+    public static void setMetrics(JavaFile javaFile, int locAdded, int churn, List<JavaFile> fileList, String authName, int locTouched) {
         setNr(javaFile);
         setNAuth(javaFile, authName);
         setLocAdded(javaFile, locAdded);
         setChurn(javaFile, churn);
+        setLocTouched(javaFile, locTouched);
         addToFileList(fileList, javaFile);
+        
     }
 
 
@@ -684,6 +718,7 @@ public class MainClass {
     private static void updateReleaseFileMetrics(JavaFile javaFile, JavaFile file) {
         updateLOCadded(javaFile, file);
         updateChurn(javaFile, file);
+        updateLocTouched(javaFile, file);
         updateNAuth(javaFile, file);
         
     }
@@ -696,13 +731,23 @@ public class MainClass {
 
 
     private static void updateChurn(JavaFile javaFile, JavaFile file) {
-        int newChurn = javaFile.getChurn();
-        int currentChurn = file.getChurn();
-        file.setChurn(currentChurn + newChurn);
-        List<Integer> newChurnList = javaFile.getChurnList();
-        List<Integer> currentChurnList = file.getChurnList();
-        currentChurnList.addAll(newChurnList);
-        file.setChurnList(currentChurnList);
+        int newLocTouched = javaFile.getChurn();
+        int currentLocTouched = file.getChurn();
+        file.setChurn(currentLocTouched + newLocTouched);
+        List<Integer> newLocTouchedList = javaFile.getChurnList();
+        List<Integer> currentLocTouchedList = file.getChurnList();
+        currentLocTouchedList.addAll(newLocTouchedList);
+        file.setChurnList(currentLocTouchedList);
+    }
+    
+    private static void updateLocTouched(JavaFile javaFile, JavaFile file) {
+        int newLocTouched = javaFile.getLocTouched();
+        int currentLocTouched = file.getLocTouched();
+        file.setLocTouched(currentLocTouched + newLocTouched);
+        List<Integer> newLocTouchedList = javaFile.getLocTouchedList();
+        List<Integer> currentLocTouchedList = file.getLocTouchedList();
+        currentLocTouchedList.addAll(newLocTouchedList);
+        file.setlocTouchedList(currentLocTouchedList);
     }
 
 
@@ -865,6 +910,8 @@ public class MainClass {
             file.setlinesOfCodeAddedList(new ArrayList<>());
             file.setChurn(0);
             file.setChurnList(new ArrayList<>());
+            file.setLocTouched(0);
+            file.setlocTouchedList(new ArrayList<>());
             // Calcola la dimensione del file in linee di codice
             int loc = calculateLinesOfCode(treeWalk);
             file.setlinesOfCode(loc);
@@ -883,8 +930,10 @@ public class MainClass {
 		public static void isBuggy(List<Release> releases, List<Ticket> tickets) {
 		    Logger logger = Logger.getLogger("MyLogger");
 		    tickets.forEach(ticket -> {
+	            List<Integer> av = ticket.getAffectedVersion();
+
 		        try {
-		            verify(ticket, releases);
+		            verify(ticket, releases,av);
 		        } catch (IOException e) {
 		            logger.log(Level.SEVERE, (Supplier<String>) () -> "Error occurred while verifying ticket " + ticket.getTicketID());
 		        }
@@ -892,12 +941,7 @@ public class MainClass {
 		}
 
 
-
-
-
-
-
-        private static void verify(Ticket ticket, List<Release> releaseList) throws IOException {
+        private static void verify(Ticket ticket, List<Release> releaseList,List<Integer> av) throws IOException {
             
             ticket.getCommitList().stream()
                 .map(commit -> {
@@ -911,7 +955,7 @@ public class MainClass {
                 })
                 .filter(Objects::nonNull)
 
-                .forEach(diffs -> diff(diffs, releaseList));
+                .forEach(diffs -> diff(diffs, releaseList,av));
         }
 
 
@@ -945,11 +989,11 @@ public class MainClass {
 
 
 
-        public static void diff(List<DiffEntry> diffs, List<Release> releasesList) {
+        public static void diff(List<DiffEntry> diffs, List<Release> releasesList,List<Integer> av) {
         	  diffs.stream()
         	       .filter(diff -> isBuggyDiffEntry(diff))
         	       .map(diff -> getFilePathFromDiffEntry(diff))
-        	       .forEach(file -> setBuggyness(file, releasesList));
+        	       .forEach(file -> setBuggyness(file, releasesList,av));
         	}
 
 
@@ -969,14 +1013,15 @@ public class MainClass {
         }
 
 
-        public static void setBuggyness(String file, List<Release> releasesList) {
-            releasesList.forEach(release -> setBuggynessForRelease(file, release));
+        public static void setBuggyness(String file, List<Release> releasesList,List<Integer> av) {
+            releasesList.forEach(release -> setBuggynessForRelease(file, release, av));
         }
 
 
-        private static void setBuggynessForRelease(String file, Release release) {
+        private static void setBuggynessForRelease(String file, Release release, List<Integer> av) {
             release.getFile().stream()
                 .filter(javaFile -> javaFile.getName().equals(file))
+                .filter(javaFile -> av.contains(release.getIndex()))
                 .findFirst()
                 .ifPresent(javaFile -> javaFile.setBuggyness("true"));
         }

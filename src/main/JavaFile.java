@@ -19,12 +19,19 @@ public class JavaFile {
     private Integer nFix;
     private Integer linesOfCodeAdded;
     private List<Integer> linesOfCodeAddedList;
+    private List<Integer> linesOfCodeTouchedList;
+
     private Integer maxlinesOfCodeAdded;
     private Integer avglinesOfCodeAdded;
     private Integer churn;
+    private Integer locTouched;
     private Integer maxChurn;
     private Integer avgChurn;
+    private Integer chgSetSize;
+
+
     private List<Integer> churnList;
+    private List<Integer> locTouchedList;
     private List<String> oldPaths;
     private List<String> nAuth;
     
@@ -45,6 +52,9 @@ public class JavaFile {
     public JavaFile(String nome) {
         this.nome = nome;
         
+    }
+    public boolean isBuggy(boolean buggyness) {
+        return buggyness;
     }
 
    
@@ -74,6 +84,12 @@ public class JavaFile {
     public Integer getlinesOfCode() {
         return linesOfCode;
     }
+    public Integer getChgSetSize() {
+        return chgSetSize;
+    }
+    public void setChgSetSize(Integer chgSetSize) {
+        this.chgSetSize = chgSetSize;
+    }
     public void setlinesOfCode(Integer linesOfCode) {
         this.linesOfCode = linesOfCode;
     }
@@ -96,13 +112,20 @@ public class JavaFile {
     public void setlinesOfCodeadded(Integer linesOfCodeAdded) {
         this.linesOfCodeAdded = linesOfCodeAdded;
     }
+    
 
     public Integer getChurn() {
         return churn;
     }
+    public Integer getLocTouched() {
+        return locTouched;
+    }
     
     public void setChurn(Integer churn) {
         this.churn = churn;
+    }
+    public void setLocTouched(Integer locTouched) {
+        this.locTouched = locTouched;
     }
 
     public Integer getMaxlinesOfCodeAdded() {
@@ -119,6 +142,7 @@ public class JavaFile {
     public void setAvglinesOfCodeAdded(Integer avglinesOfCodeAdded) {
         this.avglinesOfCodeAdded = avglinesOfCodeAdded;
     }
+    
 
     public Integer getNr() {
         return nr;
@@ -132,14 +156,25 @@ public class JavaFile {
     public List<Integer> getChurnList() {
         return churnList;
     }
+    public List<Integer> getLocTouchedList() {
+        return locTouchedList;
+    }
+    public List<Integer> getLinesOfCodeTouchedList() {
+        return linesOfCodeTouchedList;
+    }
     
     public void setChurnList(List<Integer> churnList) {
         this.churnList = churnList;
+    }
+    
+    public void setlocTouchedList(List<Integer> locTouchedList) {
+        this.locTouchedList = locTouchedList;
     }
 
     public List<Integer> getlinesOfCodeAddedList() {
         return linesOfCodeAddedList;
     }
+    
     public List<String> getNAuth() {
         return nAuth;
     }
@@ -158,6 +193,10 @@ public class JavaFile {
 
     public void setlinesOfCodeAddedList(List<Integer> linesOfCodeAddedList) {
         this.linesOfCodeAddedList = linesOfCodeAddedList;
+    }
+    
+    public void setlinesOfCodeTouchedList(List<Integer> linesOfCodeTouchedList) {
+        this.linesOfCodeTouchedList = linesOfCodeTouchedList;
     }
     
 
