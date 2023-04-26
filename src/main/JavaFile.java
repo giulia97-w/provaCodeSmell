@@ -1,6 +1,7 @@
 package main;
 
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -21,6 +22,7 @@ public class JavaFile {
     private List<Integer> linesOfCodeAddedList;
     private List<Integer> linesOfCodeTouchedList;
 
+   
     private Integer maxlinesOfCodeAdded;
     private Integer avglinesOfCodeAdded;
     private Integer churn;
@@ -34,6 +36,7 @@ public class JavaFile {
     private List<Integer> locTouchedList;
     private List<String> oldPaths;
     private List<String> nAuth;
+    
     
     public void updateMetrics(JavaFile javaFile) {
     	this.setlinesOfCodeadded(this.getlinesOfCodeadded() + javaFile.getlinesOfCodeadded());
@@ -51,8 +54,15 @@ public class JavaFile {
     
     public JavaFile(String nome) {
         this.nome = nome;
-        
+        this.linesOfCodeAddedList = new ArrayList<Integer>();
+        this.linesOfCodeTouchedList = new ArrayList<Integer>();
+        this.churnList = new ArrayList<Integer>();
+        this.locTouchedList = new ArrayList<Integer>();
+        this.oldPaths = new ArrayList<String>();
+        this.nAuth = new ArrayList<String>();
     }
+
+
     public boolean isBuggy(boolean buggyness) {
         return buggyness;
     }
@@ -82,7 +92,12 @@ public class JavaFile {
     }
 
     public Integer getlinesOfCode() {
-        return linesOfCode;
+    	if(linesOfCode == null) {
+    		return 0;
+    	}else {
+    		return linesOfCode;	
+    	}
+        
     }
     public Integer getChgSetSize() {
         return chgSetSize;
@@ -115,10 +130,24 @@ public class JavaFile {
     
 
     public Integer getChurn() {
-        return churn;
+        if (churn == null) {
+            // handle null value
+            return 0; // return default value
+            // or throw an exception to indicate that the value is not available
+            // throw new NullPointerException("Churn value is null");
+        } else {
+            return churn;
+        }
     }
+
     public Integer getLocTouched() {
-        return locTouched;
+    	
+    	if(locTouched == null) {
+    		return 0;
+    	}else {
+    		return locTouched;	
+    	}
+        
     }
     
     public void setChurn(Integer churn) {
@@ -145,8 +174,13 @@ public class JavaFile {
     
 
     public Integer getNr() {
-        return nr;
+        if (nr == null) {
+            return 0;
+        } else {
+            return nr;
+        }
     }
+
     
     public void setNr(Integer nr) {
         this.nr = nr;
