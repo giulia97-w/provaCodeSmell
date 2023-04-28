@@ -361,8 +361,7 @@ public class MainClass {
     //se FV <= OV 
     private static void handleOVNotEquals1(Ticket ticket) {        
 
-    	if (ticket.getFixedVersion().equals(ticket.getOpenVersion())) {
-    	
+        if (ticket.getFixedVersion() == ticket.getOpenVersion()) { 
             handleOVLessThanFV(ticket);
         } else { 
             handleOVMoreThanFV(ticket);
@@ -618,7 +617,8 @@ public class MainClass {
         Optional<JavaFile> foundFile = fileList.stream().filter(file -> file.getName().equals(fileName)).findFirst();
         
         if (foundFile.isPresent()) {
-            existingFile(foundFile.get(), authName, locAdded, churn, locTouched);
+            updateFileMetrics(foundFile.get(),  locAdded, churn, locTouched);
+            updateFileCounters(foundFile.get(), authName);
         } else {
             addNewFile(fileList, fileName, authName, locAdded, churn, locTouched);
         }
@@ -626,19 +626,30 @@ public class MainClass {
 
 
 
-    private static void existingFile(JavaFile file, String authName,  int locAdded, int churn, int locTouched) {
-        file.setNr(file.getNr() + 1);
-        if (!file.getNAuth().contains(authName)) {
-            file.getNAuth().add(authName);
+    private static void updateFileCounters(JavaFile file, String authName) {
+        int currentNr = file.getNr();
+        file.setNr(++currentNr);
+
+        List<String> nAuth = file.getNAuth();
+        if (!nAuth.contains(authName)) {
+            nAuth.add(authName);
         }
-        file.setlinesOfCodeadded(file.getlinesOfCodeadded() + locAdded);
+    }
+
+    private static void updateFileMetrics(JavaFile file, int locAdded, int churn, int locTouched) {
+        int currentLocAdded = file.getlinesOfCodeadded();
+        file.setlinesOfCodeadded(currentLocAdded + locAdded);
         addToLocAddedList(file, locAdded);
-        
-        file.setChurn(file.getChurn() + churn);
+
+        int currentChurn = file.getChurn();
+        file.setChurn(currentChurn + churn);
         addToChurnList(file, churn);
-        file.setLocTouched(file.getLocTouched() + locTouched);
+
+        int currentLocTouched = file.getLocTouched();
+        file.setLocTouched(currentLocTouched + locTouched);
         addToLocTouchedList(file, locTouched);
     }
+
 
     private static void addNewFile(List<JavaFile> fileList, String fileName, String authName,  int locAdded, int churn, int locTouched) {
         JavaFile javaFile = new JavaFile(fileName);
