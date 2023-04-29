@@ -579,14 +579,17 @@ public class MainClass {
                 deletedLines += edit.getLengthA();
             }
             int churn = calculateChurn(addedLines, deletedLines);
-            int locTouched = calculatelocTouched(addedLines,deletedLines);
+            int locTouched = calculatelocTouched(addedLines, deletedLines);
             DiffInfo diffInfo = new DiffInfo(diffEntry, diffEntry.getChangeType().toString(), authName, fileList, diff);
             diffInfo.setFileName(fileName);
-            fileList(fileList, diffInfo.getFileName(), authName, addedLines, churn, locTouched);
+            JavaFile newJavaFile = new JavaFile(diffInfo.getFileName());
+            setMetrics(newJavaFile, addedLines, churn, fileList, authName, locTouched);
+            fileList.add(newJavaFile);
         } catch (IOException e) {
             logger.log(Level.SEVERE, "Errore nel calcolo delle linee aggiunte ed eliminate", e);
         }
     }
+
 
 
     private static int calculateChurn(int addedLines, int deletedLines) {
@@ -613,59 +616,7 @@ public class MainClass {
         return churn;
     }
 
-    private static void fileList(List<JavaFile> fileList, String fileName, String authName, int locAdded, int churn, int locTouched) {
-        Optional<JavaFile> foundFile = fileList.stream().filter(file -> file.getName().equals(fileName)).findFirst();
-        
-        if (foundFile.isPresent()) {
-            updateFileMetrics(foundFile.get(),  locAdded, churn, locTouched);
-            updateFileCounters(foundFile.get(), authName);
-        } else {
-            addNewFile(fileList, fileName, authName, locAdded, churn, locTouched);
-        }
-    }
-
-
-
-    private static void updateFileCounters(JavaFile file, String authName) {
-        int currentNr = file.getNr();
-        file.setNr(++currentNr);
-
-        List<String> nAuth = file.getNAuth();
-        if (!nAuth.contains(authName)) {
-            nAuth.add(authName);
-        }
-    }
-
-    private static void updateFileMetrics(JavaFile file, int locAdded, int churn, int locTouched) {
-        int currentLocAdded = file.getlinesOfCodeadded();
-        file.setlinesOfCodeadded(currentLocAdded + locAdded);
-        addToLocAddedList(file, locAdded);
-
-        int currentChurn = file.getChurn();
-        file.setChurn(currentChurn + churn);
-        addToChurnList(file, churn);
-
-        int currentLocTouched = file.getLocTouched();
-        file.setLocTouched(currentLocTouched + locTouched);
-        addToLocTouchedList(file, locTouched);
-    }
-
-
-    private static void addNewFile(List<JavaFile> fileList, String fileName, String authName,  int locAdded, int churn, int locTouched) {
-        JavaFile javaFile = new JavaFile(fileName);
-        setMetrics(javaFile,  locAdded, churn, fileList, authName, locTouched);
-    }
-    private static void addToLocAddedList(JavaFile file, int locAdded) {
-        file.getlinesOfCodeAddedList().add(locAdded);
-    }
-
-    private static void addToChurnList(JavaFile file, int churn) {
-        file.getChurnList().add(churn);
-    }
-
-    private static void addToLocTouchedList(JavaFile file, int locTouched) {
-        file.getLocTouchedList().add(locTouched);
-    }
+    
 
     private static void setNr(JavaFile javaFile) {
         javaFile.setNr(1);

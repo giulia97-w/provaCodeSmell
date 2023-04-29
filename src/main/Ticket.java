@@ -137,7 +137,7 @@ public class Ticket {
         String key = jsonIssues.get("key").toString();
         LocalDateTime creationDate = LocalDateTime.parse(jsonFields.getString("created").substring(0, 16));
         JSONArray affectedVersions = jsonFields.getJSONArray("versions");
-        List<Integer> affectedVersionsIndexList = Release.getAV(affectedVersions, releases);
+        List<Integer> affectedVersionsIndexList = Release.getMatchingReleaseIndexes(affectedVersions, releases);
         Ticket ticket = new Ticket(key, creationDate, affectedVersionsIndexList);
         if (!(affectedVersionsIndexList.isEmpty() || affectedVersionsIndexList.get(0) == null)) {
             ticket.setInjectedVersion(affectedVersionsIndexList.get(0));

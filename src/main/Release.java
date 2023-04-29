@@ -136,24 +136,24 @@ public class Release {
     }
 
     
-    static List<Integer> getAV(JSONArray versions, List<Release> releases) {
-        List<Integer> listaAV = new ArrayList<>();
+    public static List<Integer> getMatchingReleaseIndexes(JSONArray versions, List<Release> releases) {
+        List<Integer> matchingIndexes = new ArrayList<>();
 
-        if (versions.isEmpty()) {
-            listaAV.add(null); 
-        } else {
-            for (int j = 0; j < versions.length(); j++) {
-                String av = versions.getJSONObject(j).getString("name"); 
-                Optional<Release> releaseOptional = releases.stream()
-                        .filter(release -> av.equals(release.getRelease()))
-                        .findFirst();
-                if (releaseOptional.isPresent()) {
-                    listaAV.add(releaseOptional.get().getIndex()); 
-                }
-            }
+        for (int i = 0; i < versions.length(); i++) {
+            String versionName = versions.getJSONObject(i).getString("name");
+            releases.stream()
+                    .filter(release -> versionName.equals(release.getRelease()))
+                    .findFirst()
+                    .ifPresent(release -> matchingIndexes.add(release.getIndex()));
         }
-        return listaAV;
+
+        if (matchingIndexes.isEmpty()) {
+            matchingIndexes.add(null);
+        }
+
+        return matchingIndexes;
     }
+
     
     public static List<Release> getListRelease(String projName) throws IOException, JSONException {
 

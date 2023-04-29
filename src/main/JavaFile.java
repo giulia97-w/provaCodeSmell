@@ -36,6 +36,7 @@ public class JavaFile {
     private List<Integer> locTouchedList;
     private List<String> oldPaths;
     private List<String> nAuth;
+	private String authName;
     
     
     public void updateMetrics(JavaFile javaFile) {
@@ -211,6 +212,12 @@ public class JavaFile {
     }
     public void setNAuth(List<String> nAuth) {
         this.nAuth = nAuth;
+    }
+    public String getAuthName() {
+    	return this.authName;
+    }
+    public void setAuthName(String authName) {
+    	this.authName = authName;
     }
 
     public Integer getnFix() {
