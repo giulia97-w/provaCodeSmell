@@ -6,7 +6,7 @@ public class ClassifierInfo
 {
 	private final String datasetInfo;
 	private Double numberTrain;
-	private Double numerBuggyTrain;
+	private Double numberBuggyTrain;
 	private Double numberBuggyTest;
 	private String classifierType;
 	private String balancing;
@@ -79,7 +79,7 @@ public class ClassifierInfo
 	}
 	public Double getBuggyTrain()
 	{
-		return this.numerBuggyTrain;
+		return this.numberBuggyTrain;
 	}
 	public Double getKappa()
 	{
@@ -173,13 +173,13 @@ public class ClassifierInfo
 		this.numberTrain = p;
 	}
 	
-	public void setNumberBuggyTest(Double p)
-	{
-		this.numerBuggyTrain = p;
-	}
-	
-	public void setNumberBuggyTrain(Double numberBuggyTest)
+	public void setNumberBuggyTest(Double numberBuggyTest)
 	{
 		this.numberBuggyTest = numberBuggyTest;
+	}
+	
+	public void setNumberBuggyTrain(Double numberBuggyTrain)
+	{
+		this.numberBuggyTrain = numberBuggyTrain;
 	}
 }
