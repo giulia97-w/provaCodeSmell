@@ -178,8 +178,8 @@ public class ClassifierInfo
 		this.numerBuggyTrain = p;
 	}
 	
-	public void setNumberBuggyTrain(Double p)
+	public void setNumberBuggyTrain(Double numberBuggyTest)
 	{
-		this.numberBuggyTest = p;
+		this.numberBuggyTest = numberBuggyTest;
 	}
 }
