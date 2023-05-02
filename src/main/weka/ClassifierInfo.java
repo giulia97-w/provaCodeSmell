@@ -5,10 +5,11 @@ package weka;
 public class ClassifierInfo 
 {
 	private final String datasetInfo;
+	private String classifier;
 	private Double numberTrain;
-	private Double numberBuggyTrain;
-	private Double numberBuggyTest;
-	private String classifierType;
+	private Double buggyInTrain;
+	private Double buggyInTest;
+
 	private String balancing;
 	private String featureSelection;
 	private String sensitivity;
@@ -17,17 +18,14 @@ public class ClassifierInfo
 	private Integer fn;
 	private Integer tn;
 	private Integer release;
-	
-	
 	private Double precision;
 	private Double recall;
 	private Double auc;
 	private Double kappa;
 	
-	
-	
-	
-	
+
+
+
 	//get
 	public ClassifierInfo(String dataset)
 	{
@@ -37,9 +35,9 @@ public class ClassifierInfo
 	{
 		return this.datasetInfo;
 	}
-	public String getclassifierType()
+	public String getClassifierType()
 	{
-		return this.classifierType;
+		return this.classifier;
 	}
 	public String getBalancing()
 	{
@@ -73,45 +71,45 @@ public class ClassifierInfo
 	{
 		return this.precision;
 	}
-	public Double getnumberTrain()
+	public Double getNumberTrain()
 	{
 		return this.numberTrain;
 	}
-	public Double getBuggyTrain()
+	public Double getBuggyInTrain()
 	{
-		return this.numberBuggyTrain;
+		return this.buggyInTrain;
 	}
 	public Double getKappa()
 	{
 		return this.kappa;
 	}
-	public Double getBuggyTest()
+	public Double getBuggyInTest()
 	{
-		return this.numberBuggyTest;
+		return this.buggyInTest;
 	}
 	public Double getAuc()
 	{
 		return this.auc;
 	}
-	
+
 	//set
-	
-	
-	public void setclassifierType(String classifierType)
+
+
+	public void setClassifierType(String classifier)
 	{
-		this.classifierType = classifierType;
+		this.classifier = classifier;
 	}
-	
+
 	public void setBalancingMethod(String balancing)
 	{
 		this.balancing = balancing;
 	}
-	
+
 	public void setFeatureSelectionMethod(String f)
 	{
 		this.featureSelection = f;
 	}
-	
+
 	public void setSensitivityMethod(String s)
 	{
 		this.sensitivity = s;
@@ -132,54 +130,54 @@ public class ClassifierInfo
 	{
 		this.tp = t;
 	}
-	
+
 	public void setFalsePositives(Integer f)
 	{
 		this.fp = f;
 	}
-	
+
 	public void setTrueNegatives(Integer t)
 	{
 		this.tn = t;
 	}
-	
+
 	public void setFalseNegatives(Integer f)
 	{
 		this.fn = f;
 	}
-	
+
 	public void setRecall(Double recall)
 	{
 		this.recall = recall;
 	}
-	
+
 	public void setPrecision(Double precision)
 	{
 		this.precision = precision;
 	}
-	
+
 	public void setKappa(Double kappa)
 	{
 		this.kappa = kappa;
 	}
-	
+
 	public void setAuc(Double auc)
 	{
 		this.auc = auc;
 	}
-	
-	public void setNumberTrainTest(Double p)
+
+	public void setNumberTrainTest(Double numberTrain)
 	{
-		this.numberTrain = p;
+		this.numberTrain = numberTrain;
 	}
-	
-	public void setNumberBuggyTest(Double numberBuggyTest)
+
+	public void setBuggyInTest(Double buggyInTest)
 	{
-		this.numberBuggyTest = numberBuggyTest;
+		this.buggyInTest = buggyInTest;
 	}
-	
-	public void setNumberBuggyTrain(Double numberBuggyTrain)
+
+	public void setBuggyInTrain(Double buggyInTrain)
 	{
-		this.numberBuggyTrain = numberBuggyTrain;
+		this.buggyInTrain = buggyInTrain;
 	}
 }
