@@ -751,7 +751,7 @@ public class MainClass {
      private static Release getReleaseForCommit(RevCommit commit, List<Release> releaseList) {
     	    LocalDateTime commitDate = commit.getAuthorIdent().getWhen().toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime();
     	    return releaseList.stream()
-    	            .filter(release -> release.getIndex() == afterBeforeDate(commitDate, releaseList.stream()))
+    	    		.filter(release -> release.getIndex().equals(afterBeforeDate(commitDate, releaseList.stream())))
     	            .findFirst()
     	            .orElse(null);
     	}
