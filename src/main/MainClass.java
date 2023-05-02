@@ -45,6 +45,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 
 public class MainClass {
@@ -177,7 +178,7 @@ public class MainClass {
 
             latestCommitDate.ifPresent(resolutionDate -> {
                 ticket.setResolutionDate(resolutionDate);
-                ticket.setFixedVersion(afterBeforeDate(resolutionDate, releasesListBookkeeper));
+                ticket.setFixedVersion(afterBeforeDate(resolutionDate, releasesListBookkeeper.stream()));
             }); }
 
     }
@@ -193,7 +194,7 @@ public class MainClass {
 
             latestCommitDate.ifPresent(resolutionDate -> {
                 ticket.setResolutionDate(resolutionDate);
-                ticket.setFixedVersion(afterBeforeDate(resolutionDate, releasesListOpenjpa));
+                ticket.setFixedVersion(afterBeforeDate(resolutionDate, releasesListOpenjpa.stream()));
             }); }
     }
     //rimuove ticket che non sono stati associati a nessun commit
@@ -748,13 +749,13 @@ public class MainClass {
 
 
      private static Release getReleaseForCommit(RevCommit commit, List<Release> releaseList) {
-            LocalDateTime commitDate = commit.getAuthorIdent().getWhen().toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime();
-            int releaseIndex = afterBeforeDate(commitDate, releaseList);
-            return releaseList.stream()
-                              .filter(release -> release.getIndex() == releaseIndex)
-                              .findFirst()
-                              .orElse(null);
-        }
+    	    LocalDateTime commitDate = commit.getAuthorIdent().getWhen().toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime();
+    	    return releaseList.stream()
+    	            .filter(release -> release.getIndex() == afterBeforeDate(commitDate, releaseList.stream()))
+    	            .findFirst()
+    	            .orElse(null);
+    	}
+
 
 
 
@@ -1009,14 +1010,13 @@ public class MainClass {
         
     }
         
-        public static Integer afterBeforeDate(LocalDateTime date, List<Release> releases) {
-            return IntStream.range(0, releases.size())
-                .mapToObj(releases::get)
+        public static Integer afterBeforeDate(LocalDateTime date, Stream<Release> releaseStream) {
+            Optional<Release> matchingRelease = releaseStream
                 .filter(release -> date.isBefore(release.getDate()) || date.isEqual(release.getDate()))
-                .findFirst()
-                .orElse(releases.get(releases.size() - 1))
-                .getIndex();
+                .findFirst();
+            return matchingRelease.isPresent() ? matchingRelease.get().getIndex() : -1;
         }
+
 
      //----proportion----
         public static void findProportion(List<Ticket> ticketList) {

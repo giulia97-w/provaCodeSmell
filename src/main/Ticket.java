@@ -144,7 +144,7 @@ public class Ticket {
         } else {
             ticket.setInjectedVersion(0);
         }
-        ticket.setOpenVersion(MainClass.afterBeforeDate(creationDate, releases));
+        ticket.setOpenVersion(MainClass.afterBeforeDate(creationDate, releases.stream()));
         return ticket;
     }
 
