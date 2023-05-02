@@ -39,12 +39,12 @@ import weka.filters.supervised.instance.Resample;
 import weka.filters.supervised.instance.SpreadSubsample;
 import weka.filters.supervised.instance.SMOTE;
 
-public class weka{ 
+public class WekaClassifier{ 
 	static String projectName = "BOOKKEEPER"; //or OPENJPA
 	public static final String SENSITIVE_LEARNING = "SENSITIVE LEARNING";
 	public static final String SENSITIVE_THRESHOLD = "SENSITIVE THRESHOLD";
 
-	private static final Logger logger =  Logger.getLogger(weka.class.getName());
+	private static final Logger logger =  Logger.getLogger(WekaClassifier.class.getName());
 	public static void main(String[] args) throws Exception
 	{
 		String projectName1 = "BOOKKEEPER"; //or OPENJPA
@@ -392,7 +392,24 @@ public class weka{
 	    return costMatrix;
 	}
 
-	//aggiunge numero di istanze classe minoritaria
+
+
+
+	//Metodo di controllo dell'applicativo
+	public static void createFile(String path) throws Exception {
+	    logger.info("Creando il file di output");
+	    ArrayList<Instances> sets = ordering(path);
+	    List<ExperimentParams> paramsList = getModelConfigurations();
+	    List<ClassifierInfo> measures = computeMeasures(paramsList, sets);
+	    toCSV(measures);
+	    logger.info("File creato!");
+	}
+	
+	private static int buggyCount(Instances data) {
+	    return (int) data.stream()
+	            .filter(instance -> instance.stringValue(instance.classIndex()).equals("true"))
+	            .count();
+	}
 	private static Instances sensitiveLearning(Instances train, int numNo, int numYes, SecureRandom random) {
 		if (numNo <= numYes) {
 		return train;
@@ -420,25 +437,6 @@ public class weka{
 
 		return oversampledTrain;
 	}
-	//conta numero di buggy
-	private static int buggyCount(Instances data) {
-	    return (int) data.stream()
-	            .filter(instance -> instance.stringValue(instance.classIndex()).equals("true"))
-	            .count();
-	}
-
-	
-
-
-	//Metodo di controllo dell'applicativo
-	public static void createFile(String path) throws Exception {
-	    logger.info("Creando il file di output");
-	    ArrayList<Instances> sets = ordering(path);
-	    List<ExperimentParams> paramsList = getModelConfigurations();
-	    List<ClassifierInfo> measures = computeMeasures(paramsList, sets);
-	    toCSV(measures);
-	    logger.info("File creato!");
-	}
 
 
 	public static List<ExperimentParams> getModelConfigurations() {
@@ -461,7 +459,7 @@ public class weka{
 	    
 	public static List<ClassifierInfo> computeMeasures(List<ExperimentParams> paramsList, List<Instances> sets) throws Exception {
 	    List<ClassifierInfo> measures = new ArrayList<>();
-	    weka weka = new weka();
+	    WekaClassifier weka = new WekaClassifier();
 	    for (ExperimentParams params : paramsList) {
 	        weka.walkForward(params, sets, measures);
 	    }
