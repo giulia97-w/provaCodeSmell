@@ -39,12 +39,12 @@ import weka.filters.supervised.instance.Resample;
 import weka.filters.supervised.instance.SpreadSubsample;
 import weka.filters.supervised.instance.SMOTE;
 
-public class weka{ 
+public class WekaClassification{ 
 	static String projectName = "OPENJPA"; //or OPENJPA
 	public static final String SENSITIVE_LEARNING = "SENSITIVE LEARNING";
 	public static final String SENSITIVE_THRESHOLD = "SENSITIVE THRESHOLD";
 
-	private static final Logger logger =  Logger.getLogger(weka.class.getName());
+	private static final Logger logger =  Logger.getLogger(WekaClassification.class.getName());
 	public static void main(String[] args) throws Exception
 	{
 		String projectName1 = "OPENJPA"; //or OPENJPA
@@ -461,7 +461,7 @@ public class weka{
 	    
 	public static List<ClassifierInfo> computeMeasures(List<ExperimentParams> paramsList, List<Instances> sets) throws Exception {
 	    List<ClassifierInfo> measures = new ArrayList<>();
-	    weka weka = new weka();
+	    WekaClassification weka = new WekaClassification();
 	    for (ExperimentParams params : paramsList) {
 	        weka.walkForward(params, sets, measures);
 	    }
