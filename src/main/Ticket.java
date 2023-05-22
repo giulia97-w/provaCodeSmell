@@ -7,6 +7,7 @@ import org.json.JSONObject;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 
 public class Ticket {
@@ -139,14 +140,16 @@ public class Ticket {
         JSONArray affectedVersions = jsonFields.getJSONArray("versions");
         List<Integer> affectedVersionsIndexList = Release.getMatchingReleaseIndexes(affectedVersions, releases);
         Ticket ticket = new Ticket(key, creationDate, affectedVersionsIndexList);
-        if (!(affectedVersionsIndexList.isEmpty() || affectedVersionsIndexList.get(0) == null)) {
-            ticket.setInjectedVersion(affectedVersionsIndexList.get(0));
-        } else {
-            ticket.setInjectedVersion(0);
-        }
-        ticket.setOpenVersion(MainClass.afterBeforeDate(creationDate, releases.stream()));
+        return updateTicket(ticket, affectedVersionsIndexList, creationDate, releases);
+    }
+    
+    public static Ticket updateTicket(Ticket ticket, List<Integer> affectedVersionsIndexList, LocalDateTime creationDate, List<Release> releases) {
+        int injectedVersion = affectedVersionsIndexList.isEmpty() || affectedVersionsIndexList.get(0) == null ? 0 : affectedVersionsIndexList.get(0);
+        ticket.setInjectedVersion(injectedVersion);
+        ticket.setOpenVersion(RetrieveMetrics.afterBeforeDate(creationDate, releases.stream()));
         return ticket;
     }
+
 
 
 	
