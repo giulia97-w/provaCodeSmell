@@ -1051,7 +1051,6 @@ public class RetrieveMetrics {
 
 
         private static int calculatemovingWindows(int total) {
-            //System.out.println("Total"  + ":" + Float.toString(total/100));
 
             return total / 100;
         }
@@ -1096,7 +1095,6 @@ public class RetrieveMetrics {
         //media dei p dell'1%
         private static int calculatepNew(float p) {
         	
-            //System.out.println("Proportion"  + ":" + Float.toString(p/movingWindows));
 
             return (int) Math.floor(p / movingWindows);
         }
@@ -1104,7 +1102,6 @@ public class RetrieveMetrics {
         private static int calculatePredictedIv(Ticket ticket, int pNew) {
             int fv = ticket.getFixedVersion();
             int ov = ticket.getOpenVersion();
-            //System.out.println("IV"  + ":" + Float.toString(fv - (fv - ov) * pNew));
 
             return fv == ov ? ov : (int) (fv - (fv - ov) * pNew);
         }
@@ -1121,7 +1118,6 @@ public class RetrieveMetrics {
             final float fv = ticket.getFixedVersion();
             final float ov = ticket.getOpenVersion();
             final float iv = ticket.getInjectedVersion();
-            //System.out.println("Proportion" + ticket.getTicketID() + ":" + Float.toString((fv-iv)/(fv-ov)));
             return Float.compare(fv, ov) == 0 ? 0f : (fv - iv) / (fv - ov);
         }
 
