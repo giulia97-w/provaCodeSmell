@@ -1078,7 +1078,6 @@ public class RetrieveMetrics {
             float p = calculateP(newProportionTicket);
             int pNew = calculatepNew(p);
             int predictedIv = calculatePredictedIv(ticket, pNew);
-            //System.out.println("Proportion"  + ":" + Float.toString(calculatepNew(p)));
 
             ticket.setInjectedVersion(Math.min(predictedIv, ticket.getOpenVersion()));
         }
