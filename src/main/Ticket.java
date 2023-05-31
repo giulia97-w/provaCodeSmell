@@ -178,7 +178,7 @@ public class Ticket {
   	   }
   	   
   	  } catch (Exception ex) {
-  		  ex.printStackTrace();
+  		  
   	  
   	  	}
   	 }	
@@ -204,7 +204,7 @@ public class Ticket {
 	  	   }
 	  	   
 	  	  } catch (Exception ex) {
-	  		  ex.printStackTrace();
+	  		  
 	  	  
 	  	  	}
 	  	 }
