@@ -1058,7 +1058,6 @@ public class RetrieveMetrics {
 
 
         private static int calculatemovingWindows(int total) {
-            //System.out.println("Total"  + ":" + Float.toString(total/100));
 
             return total / 100;
         }
@@ -1089,7 +1088,6 @@ public class RetrieveMetrics {
             float p = calculateP(newProportionTicket);
             int pNew = calculatepNew(p);
             int predictedIv = calculatePredictedIv(ticket, pNew);
-            //System.out.println("Predicted"  + ":" + Float.toString(calculatePredictedIv(ticket, pNew)));
 
             ticket.setInjectedVersion(Math.min(predictedIv, ticket.getOpenVersion()));
         }
@@ -1106,7 +1104,6 @@ public class RetrieveMetrics {
         //media dei p dell'1%
         private static int calculatepNew(float p) {
         	
-            //System.out.println("Proportion"  + ":" + Float.toString(p/movingWindows));
 
             return (int) Math.floor(p / movingWindows);
         }
@@ -1116,7 +1113,6 @@ public class RetrieveMetrics {
             int ov = ticket.getOpenVersion();
             float predictedIV = (fv - (fv - ov) * pNew);
             
-            //System.out.println("Predicted IV "  + ticket.getTicketID() + ":" + Float.toString(predictedIV));
             
             return  (int) predictedIV;
         }
@@ -1140,7 +1136,6 @@ public class RetrieveMetrics {
             	
             	
             p = (fv - iv) / (fv - ov);
-            //System.out.println("Proportion"  + ":" + Float.toString(p));
 
             return p;
 			
