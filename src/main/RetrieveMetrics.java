@@ -322,7 +322,6 @@ public class RetrieveMetrics {
 
     //set AV
     private static void handleOVMoreThanFV(Ticket ticket) {
-    	//if(ticket.getInjectedVersion() != 0) {
         int targetInjectedVersion = ticket.getInjectedVersion();
         OptionalInt validIV = IntStream.rangeClosed(targetInjectedVersion, ticket.getFixedVersion() - 1)
                                        .filter(v -> isIVValid(ticket, v))
@@ -335,7 +334,7 @@ public class RetrieveMetrics {
         } else {
             ticket.setAffectedVersion(Collections.singletonList(0));
             ticket.setInjectedVersion(0);
-        }//}
+        }
     }
 
     //se FV <= OV 
@@ -1006,13 +1005,7 @@ public class RetrieveMetrics {
                     .setMustExist(true).build();
         
     }
-        //data uguale o superiore a date
-       /* public static Integer afterBeforeDate(LocalDateTime date, Stream<Release> releaseStream) {
-            Optional<Release> matchingRelease = releaseStream
-                .filter(release -> date.isBefore(release.getDate()) || date.isEqual(release.getDate()))
-                .findFirst();
-            return matchingRelease.isPresent() ? matchingRelease.get().getIndex() : 0;
-        }*/
+        
         
         public static Integer afterBeforeDate(LocalDateTime date, List<Release> releases) {
             Release matchingRelease = releases.stream()
@@ -1132,10 +1125,10 @@ public class RetrieveMetrics {
             float p = 0;
             
             
-            if(fv!=ov)
+            if(fv!=ov){
             	
             	
-            p = (fv - iv) / (fv - ov);
+            	p = (fv - iv) / (fv - ov);}
 
             return p;
 			
