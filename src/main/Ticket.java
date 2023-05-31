@@ -15,7 +15,7 @@ import java.util.List;
 import java.util.logging.Logger;
 
 public class Ticket {
-	private static final Logger logger =  Logger.getLogger(Ticket.class.getName());
+private static final Logger logger =  Logger.getLogger(Ticket.class.getName());
 
     private String id;
     private Integer fixedVersion;
@@ -178,7 +178,8 @@ public class Ticket {
   	   }
   	   
   	  } catch (Exception ex) {
-  		  
+  		 logger.info("Errore nella creazione del dataset");
+ 
   	  
   	  	}
   	 }	
@@ -204,7 +205,8 @@ public class Ticket {
 	  	   }
 	  	   
 	  	  } catch (Exception ex) {
-	  		  
+	  		logger.info("Errore nella creazione del dataset");
+ 
 	  	  
 	  	  	}
 	  	 }
