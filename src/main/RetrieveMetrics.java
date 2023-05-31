@@ -1,3 +1,7 @@
+
+
+
+
 package main;
 
 import org.eclipse.jgit.api.Git;
@@ -45,7 +49,6 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-import java.util.stream.Stream;
 
 
 public class RetrieveMetrics {
@@ -132,6 +135,7 @@ public class RetrieveMetrics {
     }
     //restituisce lista di date dei commit associate al ticket
     private static List<LocalDateTime> findCommitDatesForTicket(Ticket ticket, List<RevCommit> commitList) {
+    	
         return commitList.stream()
                          .filter(commit -> commit.getFullMessage().contains(ticket.getTicketID()))
                          .map(commit -> {
@@ -178,7 +182,7 @@ public class RetrieveMetrics {
 
             latestCommitDate.ifPresent(resolutionDate -> {
                 ticket.setResolutionDate(resolutionDate);
-                ticket.setFixedVersion(afterBeforeDate(resolutionDate, releasesListBookkeeper.stream()));
+                ticket.setFixedVersion(afterBeforeDate(resolutionDate, releasesListBookkeeper));
             }); }
 
     }
@@ -194,7 +198,7 @@ public class RetrieveMetrics {
 
             latestCommitDate.ifPresent(resolutionDate -> {
                 ticket.setResolutionDate(resolutionDate);
-                ticket.setFixedVersion(afterBeforeDate(resolutionDate, releasesListOpenjpa.stream()));
+                ticket.setFixedVersion(afterBeforeDate(resolutionDate, releasesListOpenjpa));
             }); }
     }
     //rimuove ticket che non sono stati associati a nessun commit
@@ -220,39 +224,13 @@ public class RetrieveMetrics {
     
 
 
-    //importa AV come versioni tra IV e FV
-    public static void affectedVersion(int release, List<Ticket> ticket) {
-        removeTickets(release, ticket);
-        setAffectedVersionTicketsBookkeeper(release);
-        setAffectedVersionTicketsOpenjpa(release);
-    }
-    //rimuove i ticket in cui IV è maggiore della release
-    private static void removeTickets(int release, List<Ticket> tickets) {
-        tickets.removeIf(ticket -> ticket.getInjectedVersion() > release);
-    }
-
-
-    //setta AV
-    private static void setAffectedVersionTicketsBookkeeper(int release) {
-        ticketListBookkeeper.stream()
-                            .forEach(t -> {
-                                List<Integer> affectedVersion = IntStream.range(t.getInjectedVersion(), release)
-                                                                         .boxed()
-                                                                         .collect(Collectors.toList());
-                                t.setAffectedVersion(affectedVersion);
-                            });
-    }
-
     
-    private static void setAffectedVersionTicketsOpenjpa(int release) {
-        ticketListOpenjpa.stream()
-                            .forEach(t -> {
-                                List<Integer> affectedVersion = IntStream.range(t.getInjectedVersion(), release)
-                                                                         .boxed()
-                                                                         .collect(Collectors.toList());
-                                t.setAffectedVersion(affectedVersion);
-                            });
-    }
+    
+    /* IV != 0 -> AV else ERRORE
+     * Se OV = 1 IV = 1, se FV = 1 -> AV = empty else setAV
+     * Se OV != 1 se FV = OV, IV = OV -> AV = FV - IV
+     * Se OV != 1 se FV != OV  set AV
+     *  */
 
     //verifica che vengano rispettate determinate condizioni e setta AV
     public static void checkTicketBookkeeper() {
@@ -344,19 +322,20 @@ public class RetrieveMetrics {
 
     //set AV
     private static void handleOVMoreThanFV(Ticket ticket) {
+    	//if(ticket.getInjectedVersion() != 0) {
         int targetInjectedVersion = ticket.getInjectedVersion();
         OptionalInt validIV = IntStream.rangeClosed(targetInjectedVersion, ticket.getFixedVersion() - 1)
                                        .filter(v -> isIVValid(ticket, v))
                                        .findFirst();
         if (validIV.isPresent()) {
             ticket.setInjectedVersion(validIV.getAsInt());
-            ticket.setAffectedVersion(IntStream.rangeClosed(ticket.getInjectedVersion(), ticket.getOpenVersion() - 1)
+            ticket.setAffectedVersion(IntStream.rangeClosed(ticket.getInjectedVersion(), ticket.getFixedVersion() - 1)
                                                .boxed()
                                                .collect(Collectors.toList()));
         } else {
             ticket.setAffectedVersion(Collections.singletonList(0));
             ticket.setInjectedVersion(0);
-        }
+        }//}
     }
 
     //se FV <= OV 
@@ -369,9 +348,8 @@ public class RetrieveMetrics {
             handleOVMoreThanFV(ticket);
         }
     }
-    //controllo che IV >=1 e IV <= OV e IV <= FV
     private static boolean isIVValid(Ticket ticket, int injectedVersion) {
-        return injectedVersion >= 1 && injectedVersion < ticket.getOpenVersion() && injectedVersion <= ticket.getFixedVersion();
+        return  injectedVersion >= 1 && injectedVersion <= ticket.getOpenVersion() && injectedVersion < ticket.getFixedVersion();
     }
 
     public static void createCSV(List<Release> releases, String projectName) {
@@ -421,22 +399,27 @@ public class RetrieveMetrics {
         
         //Bookkeeper
         linkFunction();
+
         removeObsoleteReleasesAndTickets(releasesListBookkeeper, ticketListBookkeeper);
         checkTicketBookkeeper(); 
         FileRepositoryBuilder repositoryBuilderBookkeeper = new FileRepositoryBuilder();
         repository = repositoryBuilderBookkeeper.setGitDir(new File(percorso + PROJECT.toLowerCase() + endPath)).readEnvironment().findGitDir().setMustExist(true).build();
         logger.log(Level.INFO, "Numero ticket = {0}.", ticketListBookkeeper.size());
         Collections.reverse(ticketListBookkeeper); 
+        Ticket.ticketDatasetBookkeeper(ticketListBookkeeper);
+
+
         findProportion(ticketListBookkeeper);
         checkTicketBookkeeper();  
         getJavaFiles(Paths.get(percorso + PROJECT.toLowerCase()), releasesListBookkeeper);
         isBuggy(releasesListBookkeeper, ticketListBookkeeper); 
         getRepo(releasesListBookkeeper, percorso + PROJECT.toLowerCase() + endPath);
         createCSV(releasesListBookkeeper, PROJECT.toLowerCase());
-
         
         //openjpa
+
         linkFunction();
+
         removeObsoleteReleasesAndTickets(releasesListOpenjpa, ticketListOpenjpa);
         checkTicketOpenjpa();
         FileRepositoryBuilder repositoryBuilderOpenjpa = new FileRepositoryBuilder();
@@ -445,12 +428,16 @@ public class RetrieveMetrics {
               
         logger.log(Level.INFO, "Numero ticket = {0}.", ticketListOpenjpa.size());
         Collections.reverse(ticketListOpenjpa);
+
+        Ticket.ticketDatasetOpenjpa(ticketListOpenjpa);
+
         findProportion(ticketListOpenjpa);
         checkTicketOpenjpa(); 
         getJavaFiles(Paths.get(percorso + PROJECT1.toLowerCase()), releasesListOpenjpa);
         isBuggy(releasesListOpenjpa, ticketListOpenjpa); 
         getRepo(releasesListOpenjpa, percorso + PROJECT1.toLowerCase() + endPath);
         createCSV(releasesListOpenjpa, PROJECT1.toLowerCase());
+
         logger.log(Level.INFO, "Creando il file .Arff");
         
         //csvLoader openjpa
@@ -759,7 +746,7 @@ public class RetrieveMetrics {
      private static Release getReleaseForCommit(RevCommit commit, List<Release> releaseList) {
     	    LocalDateTime commitDate = commit.getAuthorIdent().getWhen().toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime();
     	    return releaseList.stream()
-    	    		.filter(release -> release.getIndex().equals(afterBeforeDate(commitDate, releaseList.stream())))
+    	    		.filter(release -> release.getIndex().equals(afterBeforeDate(commitDate, releaseList)))
     	            .findFirst()
     	            .orElse(null);
     	}
@@ -1019,13 +1006,28 @@ public class RetrieveMetrics {
                     .setMustExist(true).build();
         
     }
-        //data uguale o superiore 
-        public static Integer afterBeforeDate(LocalDateTime date, Stream<Release> releaseStream) {
+        //data uguale o superiore a date
+       /* public static Integer afterBeforeDate(LocalDateTime date, Stream<Release> releaseStream) {
             Optional<Release> matchingRelease = releaseStream
                 .filter(release -> date.isBefore(release.getDate()) || date.isEqual(release.getDate()))
                 .findFirst();
-            return matchingRelease.isPresent() ? matchingRelease.get().getIndex() : -1;
+            return matchingRelease.isPresent() ? matchingRelease.get().getIndex() : 0;
+        }*/
+        
+        public static Integer afterBeforeDate(LocalDateTime date, List<Release> releases) {
+            Release matchingRelease = releases.stream()
+                    .filter(release -> date.isBefore(release.getDate()) || date.isEqual(release.getDate()))
+                    .findFirst()
+                    .orElseGet(() -> releases.get(releases.size() - 1));
+
+            return matchingRelease.getIndex();
         }
+
+
+    
+
+        
+
 
 
      //----proportion----
@@ -1048,9 +1050,15 @@ public class RetrieveMetrics {
                     injectedVersion.add(ticket);
                 });
     }
+        
+
+        
+   
+
 
 
         private static int calculatemovingWindows(int total) {
+            //System.out.println("Total"  + ":" + Float.toString(total/100));
 
             return total / 100;
         }
@@ -1070,7 +1078,10 @@ public class RetrieveMetrics {
         //rimuovi quelli maggiori di 1%
         public static void movingWindows(List<Ticket> movingWindow, Ticket ticket) {
             movingWindow.add(ticket);
+            
             movingWindow.removeIf(t -> movingWindow.size() > movingWindows);
+            movingWindow.add(ticket);
+            
         }
 
         //prendo il min tra IV e OV
@@ -1078,6 +1089,7 @@ public class RetrieveMetrics {
             float p = calculateP(newProportionTicket);
             int pNew = calculatepNew(p);
             int predictedIv = calculatePredictedIv(ticket, pNew);
+            //System.out.println("Predicted"  + ":" + Float.toString(calculatePredictedIv(ticket, pNew)));
 
             ticket.setInjectedVersion(Math.min(predictedIv, ticket.getOpenVersion()));
         }
@@ -1094,6 +1106,7 @@ public class RetrieveMetrics {
         //media dei p dell'1%
         private static int calculatepNew(float p) {
         	
+            //System.out.println("Proportion"  + ":" + Float.toString(p/movingWindows));
 
             return (int) Math.floor(p / movingWindows);
         }
@@ -1101,8 +1114,11 @@ public class RetrieveMetrics {
         private static int calculatePredictedIv(Ticket ticket, int pNew) {
             int fv = ticket.getFixedVersion();
             int ov = ticket.getOpenVersion();
-
-            return fv == ov ? ov : (int) (fv - (fv - ov) * pNew);
+            float predictedIV = (fv - (fv - ov) * pNew);
+            
+            //System.out.println("Predicted IV "  + ticket.getTicketID() + ":" + Float.toString(predictedIV));
+            
+            return  (int) predictedIV;
         }
 
 
@@ -1117,8 +1133,19 @@ public class RetrieveMetrics {
             final float fv = ticket.getFixedVersion();
             final float ov = ticket.getOpenVersion();
             final float iv = ticket.getInjectedVersion();
-            return Float.compare(fv, ov) == 0 ? 0f : (fv - iv) / (fv - ov);
+            float p = 0;
+            
+            
+            if(fv!=ov)
+            	
+            	
+            p = (fv - iv) / (fv - ov);
+            //System.out.println("Proportion"  + ":" + Float.toString(p));
+
+            return p;
+			
         }
+        
 
 
 

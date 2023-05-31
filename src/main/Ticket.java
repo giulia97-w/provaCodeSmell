@@ -4,13 +4,18 @@ import org.eclipse.jgit.revwalk.RevCommit;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import weka.weka;
+
+import java.io.FileWriter;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.logging.Logger;
 
 public class Ticket {
+	private static final Logger logger =  Logger.getLogger(Ticket.class.getName());
 
     private String id;
     private Integer fixedVersion;
@@ -146,9 +151,63 @@ public class Ticket {
     public static Ticket updateTicket(Ticket ticket, List<Integer> affectedVersionsIndexList, LocalDateTime creationDate, List<Release> releases) {
         int injectedVersion = affectedVersionsIndexList.isEmpty() || affectedVersionsIndexList.get(0) == null ? 0 : affectedVersionsIndexList.get(0);
         ticket.setInjectedVersion(injectedVersion);
-        ticket.setOpenVersion(RetrieveMetrics.afterBeforeDate(creationDate, releases.stream()));
+        ticket.setOpenVersion(RetrieveMetrics.afterBeforeDate(creationDate, releases));
         return ticket;
     }
+    public static final String PROJECT = "BOOKKEEPER";
+	public static final String PROJECT1 = "OPENJPA";
+    
+	public static void ticketDatasetBookkeeper(List<Ticket> ticketList) {
+	  logger.info("Creando file BOOKKEEPERTickets.csv");
+
+  	  try (
+  	   FileWriter fileWriter = new FileWriter(PROJECT + "Tickets"+".csv")) {
+  	   
+  	   fileWriter.append("TICKET ID ; IV ; OV ; FV ; AV \n");
+  	   for (Ticket ticket : ticketList) {
+  		   fileWriter.append(ticket.getTicketID());
+  		   fileWriter.append(";");
+  		   fileWriter.append(ticket.getInjectedVersion().toString());
+  		   fileWriter.append(";");
+  		   fileWriter.append(ticket.getOpenVersion().toString());
+  		   fileWriter.append(";");
+  		   fileWriter.append(ticket.getFixedVersion().toString());
+  		   fileWriter.append(";");
+  		   fileWriter.append(ticket.getAffectedVersion().toString());
+  		   fileWriter.append("\n");
+  	   }
+  	   
+  	  } catch (Exception ex) {
+  		  ex.printStackTrace();
+  	  
+  	  	}
+  	 }	
+	
+	public static void ticketDatasetOpenjpa(List<Ticket> ticketList) {
+	    logger.info("Creando file OPENJPATickets.csv");
+
+	  	  try (
+	  	   FileWriter fileWriter = new FileWriter(PROJECT1 + "Tickets"+".csv")) {
+	  	   
+	  	   fileWriter.append("TICKET ID ; IV ; OV ; FV ; AV \n");
+	  	   for (Ticket ticket : ticketList) {
+	  		   fileWriter.append(ticket.getTicketID());
+	  		   fileWriter.append(";");
+	  		   fileWriter.append(ticket.getInjectedVersion().toString());
+	  		   fileWriter.append(";");
+	  		   fileWriter.append(ticket.getOpenVersion().toString());
+	  		   fileWriter.append(";");
+	  		   fileWriter.append(ticket.getFixedVersion().toString());
+	  		   fileWriter.append(";");
+	  		   fileWriter.append(ticket.getAffectedVersion().toString());
+	  		   fileWriter.append("\n");
+	  	   }
+	  	   
+	  	  } catch (Exception ex) {
+	  		  ex.printStackTrace();
+	  	  
+	  	  	}
+	  	 }
 
 
 
